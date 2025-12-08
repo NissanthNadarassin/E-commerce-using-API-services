@@ -1,1 +1,4 @@
 node_modules/
+# macOS junk
+.DS_Store
+__MACOSX/
