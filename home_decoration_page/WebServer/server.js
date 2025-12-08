@@ -68,6 +68,9 @@ db.sequelize
     await seedProducts();
     await seedInventory();
     await seedReviews();
+    await seedOrders();
+    await seedOrderItems();
+    await seedUser_address();
     console.log("All data seeded successfully!");
   })
   .catch((err) => {
