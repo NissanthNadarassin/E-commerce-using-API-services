@@ -7,9 +7,7 @@
 - **Role:** admin
 
 ### Test User Account
-- **Email:** linh_3@example.com
-- **Password:** user123
-- **Role:** user
+
 
 
 

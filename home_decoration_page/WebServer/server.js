@@ -19,6 +19,9 @@ const seedProducts = require("./seedProducts");
 const seedUsers = require("./seedUsers");
 const seedInventory = require("./seedInventory");
 const seedReviews = require("./seedReviews");
+const seedOrders = require("./seedOrders");
+const seedOrderItems = require("./seedOrderItems");
+const seedUser_address = require("./seedUser_address");
 
 const app = express();
 
