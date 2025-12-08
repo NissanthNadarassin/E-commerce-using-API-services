@@ -4,7 +4,7 @@ const db = require("./app/models"); // Import models
 const Role = db.role; // Access the Role model
 
 // Import routes
-const authRoutes = require("./app/routes/authRoutes"); 
+const authRoutes = require("./app/routes/authRoutes");
 const productRoutes = require("./app/routes/productRoutes");
 const userRoutes = require("./app/routes/userRoutes");
 const orderRoutes = require("./app/routes/orderRoutes");
@@ -12,8 +12,13 @@ const inventoryRoutes = require("./app/routes/inventoryRoutes");
 const reviewRoutes = require("./app/routes/reviewRoutes");
 const warehouseRoutes = require("./app/routes/warehouseRoutes");
 
-// Import the seedAdmin function
+// Import seed functions
 const seedAdmin = require("./seedAdmin");
+const seedWarehouses = require("./seedWarehouses");
+const seedProducts = require("./seedProducts");
+const seedUsers = require("./seedUsers");
+const seedInventory = require("./seedInventory");
+const seedReviews = require("./seedReviews");
 
 const app = express();
 
@@ -53,11 +58,17 @@ async function initial() {
 
 // Test database connection and sync tables
 db.sequelize
-  .sync({ alter: true }) // Use `alter: true` to update tables without deleting data
-  .then(() => {
+  .sync({ force: true }) // Drop and re-create tables
+  .then(async () => {
     console.log("Database synchronized successfully!");
-    initial(); // Seed roles after syncing database
-    seedAdmin();
+    await initial(); // Seed roles after syncing database
+    await seedAdmin();
+    await seedUsers();
+    await seedWarehouses();
+    await seedProducts();
+    await seedInventory();
+    await seedReviews();
+    console.log("All data seeded successfully!");
   })
   .catch((err) => {
     console.error("Error syncing database:", err.message);

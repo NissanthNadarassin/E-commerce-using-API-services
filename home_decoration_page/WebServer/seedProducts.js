@@ -84,9 +84,7 @@ const products = [
 
 const seedProducts = async () => {
   try {
-    // Ensure database connection
-    await db.sequelize.authenticate();
-    console.log("Connection to the database has been established successfully.");
+    // Ensure database connection is handled in server.js
 
     // Clear existing products (use DELETE instead of TRUNCATE to avoid FK constraints)
     await db.products.destroy({ where: {} });
@@ -103,11 +101,9 @@ const seedProducts = async () => {
     await db.products.bulkCreate(productsToInsert);
     console.log("New products have been added to the database!");
 
-    process.exit(0); // Exit the process successfully
   } catch (error) {
     console.error("Error seeding products:", error);
-    process.exit(1); // Exit the process with an error
   }
 };
 
-seedProducts();
+module.exports = seedProducts;

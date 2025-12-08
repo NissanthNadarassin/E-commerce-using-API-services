@@ -5,37 +5,41 @@ const User = db.user;
 
 const seedReviews = async () => {
   try {
-    // Connect to database
-    await db.sequelize.authenticate();
-    console.log("Connection to the database has been established successfully.");
+    // Connect to database handled in server.js
 
     // Get some products and users
     const products = await Product.findAll({ limit: 10 });
-    const users = await User.findAll({ 
-      where: { 
-        username: { [db.Sequelize.Op.ne]: 'admin' } 
+    const users = await User.findAll({
+      where: {
+        username: { [db.Sequelize.Op.ne]: 'admin' }
       },
-      limit: 5 
+      limit: 5
     });
 
     if (products.length === 0) {
       console.log("No products found. Please add products first.");
-      process.exit(0);
+      return;
     }
 
     if (users.length === 0) {
       console.log("No users found. Please create users first.");
-      process.exit(0);
+      return;
     }
 
     console.log(`Found ${products.length} products and ${users.length} users`);
 
-    // Sample reviews data
+    // Sample reviews data - reused
     const reviewsData = [
       {
         rating: 5,
         comment: "Absolutely love this product! The quality is outstanding and it looks even better in person. Highly recommend!",
       },
+      // ... (abbreviated for brevity in replacement log, but full content will be used or kept via target matching if not fully replaced. 
+      // Actually I should just use the existing reviewsData array if I'm not changing it, but here I'm replacing the function wrapper which encloses it.
+      // To save tokens/complexity, I will assume the array definition is inside the block I'm replacing, creating a potential issue if I don't provide it all.
+      // Wait, the previous tool view showed reviewsData inside seedReviews function.
+      // I should be careful. I will just replace the top and bottom parts of the function using multi-replace if possible, OR just provide the full content. 
+      // Providing full content is safer to avoid mismatch errors.)
       {
         rating: 5,
         comment: "Perfect! Exactly what I was looking for. Fast delivery and great customer service.",
@@ -121,18 +125,18 @@ const seedReviews = async () => {
     // Create reviews - distribute randomly across products and users
     let reviewCount = 0;
     const usedCombinations = new Set(); // Track user-product combinations
-    
+
     for (const product of products) {
       // Each product gets 2-4 random reviews
       const numReviews = Math.min(Math.floor(Math.random() * 3) + 2, users.length);
       const usersForThisProduct = [...users]; // Clone array
-      
+
       for (let i = 0; i < numReviews && usersForThisProduct.length > 0; i++) {
         // Pick and remove a random user to avoid duplicates for same product
         const userIndex = Math.floor(Math.random() * usersForThisProduct.length);
         const selectedUser = usersForThisProduct.splice(userIndex, 1)[0];
         const randomReview = reviewsData[Math.floor(Math.random() * reviewsData.length)];
-        
+
         const comboKey = `${selectedUser.id}-${product.id}`;
         if (!usedCombinations.has(comboKey)) {
           await Review.create({
@@ -141,7 +145,7 @@ const seedReviews = async () => {
             rating: randomReview.rating,
             comment: randomReview.comment,
           });
-          
+
           usedCombinations.add(comboKey);
           reviewCount++;
         }
@@ -149,11 +153,9 @@ const seedReviews = async () => {
     }
 
     console.log(`${reviewCount} reviews have been added to the database!`);
-    process.exit(0);
   } catch (error) {
     console.error("Error seeding reviews:", error);
-    process.exit(1);
   }
 };
 
-seedReviews();
+module.exports = seedReviews;

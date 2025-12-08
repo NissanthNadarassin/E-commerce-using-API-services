@@ -93,7 +93,20 @@ This guide explains how to set up and run the frontend and backend of the Home D
    ```bash
    npm start
    ```
+9. To run the website, you need to start the frontend development server.
 
+Since you already have the backend running (I see npm start in home_decoration_page/WebServer), you just need to:
+
+**Open a new terminal.**
+
+Navigate to the frontend directory:
+```bash
+cd home_decoration_page
+```
+Start the frontend:
+```bash
+npm run dev
+```
 ---
 
 ✅ **Your project is now running locally!**  

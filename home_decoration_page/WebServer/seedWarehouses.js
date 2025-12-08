@@ -69,8 +69,8 @@ const warehouses = [
 const seedWarehouses = async () => {
   try {
     // Ensure database connection
-    await db.sequelize.authenticate();
-    console.log("Connection to the database has been established successfully.");
+    // await db.sequelize.authenticate(); // Connection is already handled in server.js
+    // console.log("Connection to the database has been established successfully.");
 
     // Clear existing warehouses
     await db.warehouse.destroy({ where: {} });
@@ -80,11 +80,9 @@ const seedWarehouses = async () => {
     await db.warehouse.bulkCreate(warehouses);
     console.log(`${warehouses.length} warehouses have been added to the database!`);
 
-    process.exit(0);
   } catch (error) {
     console.error("Error seeding warehouses:", error);
-    process.exit(1);
   }
 };
 
-seedWarehouses();
+module.exports = seedWarehouses;

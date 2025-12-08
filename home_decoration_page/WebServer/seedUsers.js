@@ -34,7 +34,7 @@ async function seedUsers() {
     const userRole = await Role.findOne({ where: { name: "user" } });
     if (!userRole) {
       console.error("User role not found! Please run role seeding first.");
-      process.exit(1);
+      return;
     }
 
     let createdCount = 0;
@@ -63,7 +63,7 @@ async function seedUsers() {
 
       // Assign user role
       await newUser.setRoles([userRole.id]);
-      
+
       console.log(`✓ Created user: ${userData.username} (${userData.email})`);
       createdCount++;
     }
@@ -74,14 +74,9 @@ async function seedUsers() {
     console.log(`Total: ${users.length} users processed`);
     console.log("User seeding completed successfully!");
 
-    process.exit(0);
   } catch (error) {
     console.error("Error seeding users:", error);
-    process.exit(1);
   }
 }
 
-// Initialize database and run seeding
-db.sequelize.sync().then(() => {
-  seedUsers();
-});
+module.exports = seedUsers;

@@ -2,12 +2,11 @@ const db = require("./app/models");
 
 async function seedInventory() {
   try {
-    await db.sequelize.authenticate();
-    console.log("Connection established successfully.");
+    // Connection established in server.js
 
     // Get all products
     const products = await db.products.findAll();
-    
+
     console.log(`Found ${products.length} products. Creating inventory records...`);
 
     for (const product of products) {
@@ -19,7 +18,7 @@ async function seedInventory() {
       if (!existingInventory) {
         await db.inventory.create({
           productId: product.id,
-          warehouseId: 1,
+          warehouseId: 1, // Assuming Warehouse Paris (id: 1) exists from seedWarehouses
           quantity_available: 100 // Initial stock
         });
         console.log(`Created inventory for product ${product.id}: ${product.product_name}`);
@@ -29,11 +28,9 @@ async function seedInventory() {
     }
 
     console.log("Inventory seeding completed!");
-    process.exit(0);
   } catch (error) {
     console.error("Error seeding inventory:", error);
-    process.exit(1);
   }
 }
 
-seedInventory();
+module.exports = seedInventory;
