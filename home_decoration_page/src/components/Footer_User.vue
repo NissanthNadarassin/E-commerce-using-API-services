@@ -25,7 +25,7 @@
             </div>
         </div>
     </footer>
-    <div class="rights"><p>All Rights Reserved © 2024</p></div>
+    <div class="rights"><p>All Rights Reserved © 2025</p></div>
 </template>
 
 <script>

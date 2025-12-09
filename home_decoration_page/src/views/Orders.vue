@@ -443,10 +443,7 @@ export default {
     },
     
     trackOrder(orderId) {
-      // Placeholder for tracking functionality - to be implemented later
-      alert(`Tracking for Order #${orderId}\n\nShipping tracking feature will be updated soon.`);
-      // TODO: Implement order tracking page
-      // this.$router.push(`/track-order/${orderId}`);
+      this.$router.push(`/track-delivery/${orderId}`);
     },
     
     async cancelOrder(orderId) {

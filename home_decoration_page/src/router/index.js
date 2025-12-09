@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import Home from "../views/Home.vue"; 
+import Home from "../views/Home.vue";
 import Beds from '../views/Beds.vue';
 import Decoration from '../views/Decoration.vue';
 import Furniture from '../views/Furniture.vue';
@@ -14,88 +14,93 @@ import WarehouseManagement from "../views/WarehouseManagement.vue";
 import Orders from "../views/Orders.vue";
 import AdminDashboard from "../views/AdminDashboard.vue";
 
-const routes = [ 
-    {
-        path: "/",
-        name : "Home",
-        component: Home ,
-    },
-    {
-        path: "/beds",
-        name : "Beds",
-        component: Beds ,
-    },
-    {
-        path: "/decoration",
-        name : "Decoration",
-        component: Decoration ,
-    },
-    {
-        path: "/furniture",
-        name : "Furniture",
-        component: Furniture ,
-    },
-    {
-        path: "/storage",
-        name : "Storage",
-        component: Storage ,
-    },
-    {
-        path: "/cart",
-        name : "Cart",
-        component: Cart ,
-        meta: { requiresAuth: true }, 
-    },
-    {
-        path: "/profile",
-        name: "UserProfile",
-        component: Orders,
-        meta: { requiresAuth: true },
-    },
-    {
-        path: "/product/:id", 
-        name: "Individual_product",
-        component: Individual_product,
-        props: true, 
-        // No auth required - public can view product details
-      },
-      {
-        path: "/register",
-        name: "Register",
-        component: Registry,
-        meta: { guest: true }, // Mark as accessible to guests only
-      },
-      {
-        path: "/login",
-        name: "Login",
-        component: Login,
-        meta: { guest: true }, // Mark as accessible to guests only
-      },
-      {
-        path: "/products",
-        name: "ProductManagement",
-        component: ProductManagement,
-        meta: { requiresAuth: true, role: "admin" }, // Restricted to admin
-      },
-      {
-        path: "/users",
-        name: "UserManagement",
-        component: UserManagement,
-        meta: { requiresAuth: true, role: "admin" }, // Restricted to admin
-      },
-      {
-        path: "/warehouses",
-        name: "WarehouseManagement",
-        component: WarehouseManagement,
-        meta: { requiresAuth: true, role: "admin" }, // Restricted to admin
-      },
-      {
-        path: "/admin",
-        name: "AdminDashboard",
-        component: AdminDashboard,
-        meta: { requiresAuth: true, role: "admin" }, // Restricted to admin
-      },
-      
+const routes = [
+  {
+    path: "/",
+    name: "Home",
+    component: Home,
+  },
+  {
+    path: "/beds",
+    name: "Beds",
+    component: Beds,
+  },
+  {
+    path: "/decoration",
+    name: "Decoration",
+    component: Decoration,
+  },
+  {
+    path: "/furniture",
+    name: "Furniture",
+    component: Furniture,
+  },
+  {
+    path: "/storage",
+    name: "Storage",
+    component: Storage,
+  },
+  {
+    path: "/cart",
+    name: "Cart",
+    component: Cart,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: "/profile",
+    name: "UserProfile",
+    component: Orders,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: "/product/:id",
+    name: "Individual_product",
+    component: Individual_product,
+    props: true,
+    // No auth required - public can view product details
+  },
+  {
+    path: "/register",
+    name: "Register",
+    component: Registry,
+    meta: { guest: true }, // Mark as accessible to guests only
+  },
+  {
+    path: "/login",
+    name: "Login",
+    component: Login,
+    meta: { guest: true }, // Mark as accessible to guests only
+  },
+  {
+    path: "/products",
+    name: "ProductManagement",
+    component: ProductManagement,
+    meta: { requiresAuth: true, role: "admin" }, // Restricted to admin
+  },
+  {
+    path: "/users",
+    name: "UserManagement",
+    component: UserManagement,
+    meta: { requiresAuth: true, role: "admin" }, // Restricted to admin
+  },
+  {
+    path: "/warehouses",
+    name: "WarehouseManagement",
+    component: WarehouseManagement,
+    meta: { requiresAuth: true, role: "admin" }, // Restricted to admin
+  },
+  {
+    path: "/admin",
+    name: "AdminDashboard",
+    component: AdminDashboard,
+    meta: { requiresAuth: true, role: "admin" }, // Restricted to admin
+  },
+  {
+    path: "/track-delivery/:id",
+    name: "DeliveryTracking",
+    component: () => import("../views/DeliveryTracking.vue"),
+    meta: { requiresAuth: true },
+  },
 ]
 
 const router = createRouter({

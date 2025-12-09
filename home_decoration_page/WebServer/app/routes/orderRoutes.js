@@ -23,4 +23,7 @@ router.get("/admin/all", [authJwt.verifyToken, authJwt.isAdmin], orderController
 // Update order status (Admin only)
 router.put("/admin/:id/status", [authJwt.verifyToken, authJwt.isAdmin], orderController.updateOrderStatus);
 
+// Delivery Tracking Route
+router.get("/:id/delivery", [authJwt.verifyToken], orderController.processDelivery);
+
 module.exports = router;
