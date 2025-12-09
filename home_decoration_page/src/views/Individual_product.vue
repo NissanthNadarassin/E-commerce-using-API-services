@@ -16,7 +16,7 @@
           <div v-else>No ratings yet.</div>
         </div>
 
-        <h2>Price: {{ product.price }} $</h2>
+        <h2>Price: {{ product.price }}€</h2>
         <p class="description">Description:</p>
         <p>{{ product.description }}</p>
 

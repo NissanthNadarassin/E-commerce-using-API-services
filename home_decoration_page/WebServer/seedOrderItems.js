@@ -5,76 +5,76 @@ const Product = db.products;
 
 const orderItems = [
   // Order 1 items
-  { orderId: 1, productId: 1, quantity: 1, unit_price: 899.99 },
-  { orderId: 1, productId: 5, quantity: 2, unit_price: 199.99 },
-  
+  { orderId: 1, productId: 1, quantity: 1, price: 899.99 },
+  { orderId: 1, productId: 5, quantity: 2, price: 199.99 },
+
   // Order 2 items
-  { orderId: 2, productId: 2, quantity: 1, unit_price: 899.99 },
-  
+  { orderId: 2, productId: 2, quantity: 1, price: 899.99 },
+
   // Order 3 items
-  { orderId: 3, productId: 9, quantity: 1, unit_price: 149.99 },
-  { orderId: 3, productId: 10, quantity: 2, unit_price: 199.99 },
-  
+  { orderId: 3, productId: 1, quantity: 1, price: 149.99 },
+  { orderId: 3, productId: 2, quantity: 2, price: 199.99 },
+
   // Order 4 items
-  { orderId: 4, productId: 3, quantity: 1, unit_price: 1099.99 },
-  { orderId: 4, productId: 4, quantity: 1, unit_price: 1099.99 },
-  
+  { orderId: 4, productId: 3, quantity: 1, price: 1099.99 },
+  { orderId: 4, productId: 4, quantity: 1, price: 1099.99 },
+
   // Order 5 items
-  { orderId: 5, productId: 1, quantity: 1, unit_price: 899.99 },
-  { orderId: 5, productId: 7, quantity: 1, unit_price: 699.99 },
-  
+  { orderId: 5, productId: 1, quantity: 1, price: 899.99 },
+  { orderId: 5, productId: 7, quantity: 1, price: 699.99 },
+
   // Order 6 items
-  { orderId: 6, productId: 6, quantity: 1, unit_price: 799.99 },
-  
+  { orderId: 6, productId: 6, quantity: 1, price: 799.99 },
+
   // Order 7 items
-  { orderId: 7, productId: 3, quantity: 1, unit_price: 1099.99 },
-  
+  { orderId: 7, productId: 3, quantity: 1, price: 1099.99 },
+
   // Order 8 items
-  { orderId: 8, productId: 11, quantity: 1, unit_price: 249.99 },
-  { orderId: 8, productId: 12, quantity: 2, unit_price: 199.99 },
-  
+  { orderId: 8, productId: 3, quantity: 1, price: 249.99 },
+  { orderId: 8, productId: 4, quantity: 2, price: 199.99 },
+
   // Order 9 items
-  { orderId: 9, productId: 1, quantity: 2, unit_price: 899.99 },
-  
+  { orderId: 9, productId: 1, quantity: 2, price: 899.99 },
+
   // Order 10 items
-  { orderId: 10, productId: 8, quantity: 1, unit_price: 999.99 },
-  
+  { orderId: 10, productId: 8, quantity: 1, price: 999.99 },
+
   // Order 11 items
-  { orderId: 11, productId: 13, quantity: 1, unit_price: 349.99 },
-  { orderId: 11, productId: 14, quantity: 1, unit_price: 1099.99 },
-  
+  { orderId: 11, productId: 5, quantity: 1, price: 349.99 },
+  { orderId: 11, productId: 6, quantity: 1, price: 1099.99 },
+
   // Order 12 items
-  { orderId: 12, productId: 15, quantity: 1, unit_price: 449.99 },
-  { orderId: 12, productId: 16, quantity: 2, unit_price: 199.99 },
-  
+  { orderId: 12, productId: 7, quantity: 1, price: 449.99 },
+  { orderId: 12, productId: 8, quantity: 2, price: 199.99 },
+
   // Order 13 items
-  { orderId: 13, productId: 2, quantity: 1, unit_price: 899.99 },
-  { orderId: 13, productId: 3, quantity: 1, unit_price: 1099.99 },
-  
+  { orderId: 13, productId: 2, quantity: 1, price: 899.99 },
+  { orderId: 13, productId: 3, quantity: 1, price: 1099.99 },
+
   // Order 14 items
-  { orderId: 14, productId: 17, quantity: 1, unit_price: 599.99 },
-  
+  { orderId: 14, productId: 1, quantity: 1, price: 599.99 },
+
   // Order 15 items
-  { orderId: 15, productId: 18, quantity: 1, unit_price: 299.99 },
-  { orderId: 15, productId: 4, quantity: 1, unit_price: 999.99 },
-  
+  { orderId: 15, productId: 2, quantity: 1, price: 299.99 },
+  { orderId: 15, productId: 4, quantity: 1, price: 999.99 },
+
   // Order 16 items
-  { orderId: 16, productId: 5, quantity: 1, unit_price: 199.99 },
-  { orderId: 16, productId: 6, quantity: 1, unit_price: 249.99 },
-  
+  { orderId: 16, productId: 5, quantity: 1, price: 199.99 },
+  { orderId: 16, productId: 6, quantity: 1, price: 249.99 },
+
   // Order 17 items
-  { orderId: 17, productId: 1, quantity: 2, unit_price: 899.99 },
-  { orderId: 17, productId: 10, quantity: 1, unit_price: 99.99 },
-  
+  { orderId: 17, productId: 1, quantity: 2, price: 899.99 },
+  { orderId: 17, productId: 2, quantity: 1, price: 99.99 },
+
   // Order 18 items
-  { orderId: 18, productId: 7, quantity: 1, unit_price: 349.99 },
-  
+  { orderId: 18, productId: 7, quantity: 1, price: 349.99 },
+
   // Order 19 items
-  { orderId: 19, productId: 2, quantity: 2, unit_price: 899.99 },
-  { orderId: 19, productId: 8, quantity: 1, unit_price: 699.99 },
-  
+  { orderId: 19, productId: 2, quantity: 2, price: 899.99 },
+  { orderId: 19, productId: 8, quantity: 1, price: 699.99 },
+
   // Order 20 items
-  { orderId: 20, productId: 11, quantity: 1, unit_price: 699.99 },
+  { orderId: 20, productId: 3, quantity: 1, price: 699.99 },
 ];
 
 async function seedOrderItems() {

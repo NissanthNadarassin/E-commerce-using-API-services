@@ -106,7 +106,7 @@
             <p><strong>ID:</strong> {{ product.id }}</p>
             <p><strong>Product Name:</strong> {{ product.product_name }}</p>
             <p><strong>Description:</strong> {{ product.description }}</p>
-            <p><strong>Price:</strong> ${{ product.price }}</p>
+            <p><strong>Price:</strong> €{{ product.price }}</p>
             <p><strong>Category:</strong> {{ product.category }}</p>
             <p><strong>Total Quantity:</strong> {{ product.quantity_available || 0 }}</p>
           </div>

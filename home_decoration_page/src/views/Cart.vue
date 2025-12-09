@@ -44,7 +44,7 @@
       </div>
 
       <div class="total">
-        <p>Total to pay : {{ totalPrice }}$ ({{number_Cart_Items}} {{ number_Cart_Items === 1 ? 'product' : 'products' }})</p>
+        <p>Total to pay : {{ totalPrice }}€ ({{number_Cart_Items}} {{ number_Cart_Items === 1 ? 'product' : 'products' }})</p>
         <button @click="createOrder" class="checkout-btn" :disabled="!selectedAddressId">Place Order</button>
       </div>
     </div>

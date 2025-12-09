@@ -60,7 +60,7 @@
           <font-awesome-icon :icon="['fas', 'dollar-sign']" />
         </div>
         <div class="stat_content">
-          <h3>${{ stats.totalRevenue ? stats.totalRevenue.toFixed(2) : '0.00' }}</h3>
+          <h3>€{{ stats.totalRevenue ? stats.totalRevenue.toFixed(2) : '0.00' }}</h3>
           <p>Total Revenue</p>
         </div>
       </div>
@@ -102,7 +102,7 @@
               <td>#{{ order.id }}</td>
               <td>{{ order.user?.username || 'N/A' }}</td>
               <td>{{ formatDate(order.createdAt) }}</td>
-              <td>${{ parseFloat(order.total_amount).toFixed(2) }}</td>
+              <td>€{{ parseFloat(order.total_amount).toFixed(2) }}</td>
               <td>
                 <span class="status_badge" :class="'status_' + order.status">
                   {{ order.status.toUpperCase() }}

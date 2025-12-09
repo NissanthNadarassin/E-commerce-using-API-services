@@ -15,7 +15,7 @@
             </div>
         </div>
         <div>
-            <h2>Price: {{ product.price * product.quantity_cart }} $</h2>
+            <h2>Price: {{ product.price * product.quantity_cart }}€</h2>
         </div>
     </div>
 </template>

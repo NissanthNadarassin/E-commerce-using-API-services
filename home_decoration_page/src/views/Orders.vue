@@ -186,55 +186,110 @@
         <router-link to="/" class="shop_btn">Start Shopping</router-link>
       </div>
       
-      <div v-else class="orders_list">
-        <div v-for="order in orders" :key="order.id" class="order_card">
-        <div class="order_header">
-          <div class="order_info">
-            <h3>Order #{{ order.id }}</h3>
-            <span class="order_date">{{ formatDate(order.createdAt) }}</span>
-          </div>
-          <div class="order_status_badge" :class="getStatusClass(order.status)">
-            {{ order.status.toUpperCase() }}
-          </div>
-        </div>
+      <div v-else class="orders_container">
         
-        <div class="order_items">
-          <div v-for="item in order.items" :key="item.id" class="order_item" @click="goToProduct(item.product.id)">
-            <img :src="item.product.img" :alt="item.product.product_name" />
-            <div class="item_details">
-              <h4>{{ item.product.product_name }}</h4>
-              <p>Quantity: {{ item.quantity }} × ${{ item.price }}</p>
+        <!-- Current Orders Section -->
+        <div v-if="currentOrders.length > 0" class="orders_subsection">
+          <h4>Current Orders</h4>
+          <div class="orders_list">
+            <div v-for="order in currentOrders" :key="order.id" class="order_card">
+              <div class="order_header">
+                <div class="order_info">
+                  <h3>Order #{{ order.id }}</h3>
+                  <span class="order_date">{{ formatDate(order.createdAt) }}</span>
+                </div>
+                <div class="order_status_badge" :class="getStatusClass(order.status)">
+                  {{ order.status.toUpperCase() }}
+                </div>
+              </div>
+              
+              <div class="order_items">
+                <div v-for="item in order.items" :key="item.id" class="order_item" @click="goToProduct(item.product.id)">
+                  <img :src="item.product.img" :alt="item.product.product_name" />
+                  <div class="item_details">
+                    <h4>{{ item.product.product_name }}</h4>
+                    <p>Quantity: {{ item.quantity }} × {{ item.price }}€</p>
+                  </div>
+                  <div class="item_total">
+                    {{ (item.quantity * item.price).toFixed(2) }}€
+                  </div>
+                </div>
+              </div>
+              
+              <div class="order_footer">
+                <div class="order_total">
+                  <strong>Total Amount: {{ parseFloat(order.total_amount).toFixed(2) }}€</strong>
+                </div>
+                <div class="order_actions">
+                  <button 
+                    v-if="order.status.toLowerCase() !== 'completed'"
+                    @click="trackOrder(order.id)"
+                    class="track_btn"
+                  >
+                    Track Order
+                  </button>
+                  <button 
+                    v-if="order.status === 'pending'" 
+                    @click="cancelOrder(order.id)"
+                    class="cancel_btn"
+                  >
+                    Cancel Order
+                  </button>
+                  <span v-else-if="order.status === 'cancelled'" class="cancelled_text">
+                    Order Cancelled
+                  </span>
+                </div>
+              </div>
             </div>
-            <div class="item_total">
-              ${{ (item.quantity * item.price).toFixed(2) }}
+          </div>
+        </div>
+
+        <!-- Past Orders Section -->
+        <div v-if="pastOrders.length > 0" class="orders_subsection">
+          <h4>Past Orders</h4>
+          <div class="orders_list">
+            <div v-for="order in pastOrders" :key="order.id" class="order_card past_order">
+              <div class="order_header">
+                <div class="order_info">
+                  <h3>Order #{{ order.id }}</h3>
+                  <span class="order_date">{{ formatDate(order.createdAt) }}</span>
+                </div>
+                <div class="order_status_badge" :class="getStatusClass(order.status)">
+                  {{ order.status.toUpperCase() }}
+                </div>
+              </div>
+              
+              <div class="order_items">
+                <div v-for="item in order.items" :key="item.id" class="order_item" @click="goToProduct(item.product.id)">
+                  <img :src="item.product.img" :alt="item.product.product_name" />
+                  <div class="item_details">
+                    <h4>{{ item.product.product_name }}</h4>
+                    <p>Quantity: {{ item.quantity }} × {{ item.price }}€</p>
+                  </div>
+                  <div class="item_total">
+                    {{ (item.quantity * item.price).toFixed(2) }}€
+                  </div>
+                </div>
+              </div>
+              
+              <div class="order_footer">
+                <div class="order_total">
+                  <strong>Total Amount: {{ parseFloat(order.total_amount).toFixed(2) }}€</strong>
+                </div>
+                <div class="order_actions">
+                  <!-- No actions for past orders mostly, unless re-order is added later -->
+                  <span v-if="order.status === 'cancelled'" class="cancelled_text">
+                    Order Cancelled
+                  </span>
+                  <span v-if="order.status === 'completed'" class="completed_text">
+                    Sales Receipt Available
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-        
-        <div class="order_footer">
-          <div class="order_total">
-            <strong>Total Amount: ${{ parseFloat(order.total_amount).toFixed(2) }}</strong>
-          </div>
-          <div class="order_actions">
-            <button 
-              @click="trackOrder(order.id)"
-              class="track_btn"
-            >
-              Track Order
-            </button>
-            <button 
-              v-if="order.status === 'pending'" 
-              @click="cancelOrder(order.id)"
-              class="cancel_btn"
-            >
-              Cancel Order
-            </button>
-            <span v-else-if="order.status === 'cancelled'" class="cancelled_text">
-              Order Cancelled
-            </span>
-          </div>
-        </div>
-        </div>
+
       </div>
     </div>
   </div>
@@ -280,6 +335,18 @@ export default {
     },
     isAdmin() {
       return this.userInfo.roles && this.userInfo.roles.includes('admin');
+    },
+    currentOrders() {
+      return this.orders.filter(order => {
+        const s = order.status.toLowerCase();
+        return s !== 'completed' && s !== 'cancelled';
+      });
+    },
+    pastOrders() {
+      return this.orders.filter(order => {
+        const s = order.status.toLowerCase();
+        return s === 'completed' || s === 'cancelled';
+      });
     }
   },
   created() {
@@ -1218,5 +1285,28 @@ h3 {
   .track_btn {
     width: 100%;
   }
+}
+
+.orders_subsection {
+  margin-bottom: 40px;
+}
+
+.orders_subsection h4 {
+  font-size: 20px;
+  color: #243E36;
+  margin-bottom: 15px;
+  border-bottom: 1px solid #ccc;
+  padding-bottom: 5px;
+}
+
+.order_card.past_order {
+  opacity: 0.8;
+  background-color: #f9f9f9;
+}
+
+.completed_text {
+  color: #243E36;
+  font-size: 0.9rem;
+  font-style: italic;
 }
 </style>

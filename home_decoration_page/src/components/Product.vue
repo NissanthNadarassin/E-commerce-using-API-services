@@ -16,7 +16,7 @@
         <span class="no-reviews">No reviews yet</span>
       </div>
       
-      <h2>Price: {{ product.price }} $</h2>
+      <h2>Price: {{ product.price }}€</h2>
     </div>
   </template>
   

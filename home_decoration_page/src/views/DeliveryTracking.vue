@@ -23,7 +23,7 @@
           </div>
           <div class="status-text">
             <h2>Order : {{ deliveryPlan.status }}</h2>
-            <p class="eta-text">Estimated delivery: {{ friendlyEta }}</p>
+            <p class="eta-text">{{ friendlyEta }}</p>
           </div>
         </div>
         
@@ -83,22 +83,49 @@ export default {
       if (isTomorrow) dayString = "Tomorrow";
 
       const hour = etaDate.getHours();
-      let timeOfDay = "during the day";
-      
-      if (hour < 12) {
-          timeOfDay = "morning (10am - 11am)";
-      } else if (hour < 17) {
-          timeOfDay = "afternoon (2pm - 4pm)";
-      } else {
-           timeOfDay = "evening";
+      const minute = etaDate.getMinutes();
+      const timeString = etaDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      // Change text for Delivered/Completed
+      if (this.deliveryPlan.status === 'Delivered' || this.deliveryPlan.status === 'Completed') {
+          if (isToday) return `Delivered today at ${timeString}`;
+          return `Delivered on ${etaDate.toLocaleDateString()} at ${timeString}`;
       }
 
-      return `${dayString} ${timeOfDay}`;
+      const label = "Estimated delivery:";
+      
+      // Check for Range (Real Mode)
+      if (this.deliveryPlan.windowStart && this.deliveryPlan.windowEnd) {
+          const start = new Date(this.deliveryPlan.windowStart);
+          const end = new Date(this.deliveryPlan.windowEnd);
+          const now = new Date(); // Fix: Define now
+          
+          const startStr = start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          const endStr = end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+          const isWindowToday = start.getDate() === now.getDate() && start.getMonth() === now.getMonth();
+          const isWindowTomorrow = start.getDate() === now.getDate() + 1;
+          
+          if (isWindowToday) return `${label} Today between ${startStr} - ${endStr}`;
+          if (isWindowTomorrow) return `${label} Tomorrow between ${startStr} - ${endStr}`;
+          return `${label} ${start.toLocaleDateString()} ${startStr} - ${endStr}`;
+      }
+
+      if (isToday) {
+          return `${label} Today at ${timeString}`;
+      } else if (isTomorrow) {
+          return `${label} Tomorrow at ${timeString}`;
+      }
+      
+      // Fallback for future dates
+      return `${label} ${dayString} at ${timeString}`;
     }
   },
   async created() {
     try {
+      // Simulate loading time
       await new Promise(resolve => setTimeout(resolve, 1000));
+      
       const response = await OrderService.trackDelivery(this.orderId);
       this.deliveryPlan = response.data;
       this.loading = false;
@@ -133,24 +160,24 @@ export default {
         attribution: '&copy; OpenStreetMap contributors'
       }).addTo(this.map);
 
-      // Custom Image Icons (Using Icons8)
+      // Custom Local Icons (User Provided)
       // Fix Anchors to Center [16,16] since these are square images, prevents jumping on zoom
       const warehouseIcon = L.icon({
-          iconUrl: 'https://img.icons8.com/fluency/48/warehouse-1.png', 
+          iconUrl: '/icons/warehouse.png', 
           iconSize: [32, 32],
           iconAnchor: [16, 16], 
           popupAnchor: [0, -20]
       });
 
       const homeIcon = L.icon({
-          iconUrl: 'https://img.icons8.com/fluency/48/home.png', 
+          iconUrl: '/icons/home.png', 
           iconSize: [32, 32],
           iconAnchor: [16, 16], 
           popupAnchor: [0, -20]
       });
 
       const truckIcon = L.icon({
-          iconUrl: 'https://cdn-icons-png.flaticon.com/512/759/759960.png', 
+          iconUrl: '/icons/truck.png', 
           iconSize: [40, 40],
           iconAnchor: [20, 20] 
       });
@@ -169,6 +196,24 @@ export default {
           destCoords = [destCoords[0] + 0.005, destCoords[1] + 0.005]; 
       }
 
+      // --- VISIBILITY LOGIC per Status ---
+      const plan = this.deliveryPlan;
+      const status = plan.status;
+      const isEnRoute = status === "En Route";
+      const isDelivered = status === "Delivered";
+      const isCompleted = status === "Completed";
+
+      // 1. Delivered/Completed State: Show ONLY exact delivery location
+      if (isDelivered || isCompleted) {
+          L.marker(destCoords, { icon: homeIcon }).addTo(this.map)
+              .bindPopup(`<b>Delivery Location</b><br>${customerAddr}`)
+              .openPopup();
+          
+          this.map.setView(destCoords, 14); // Zoom in on home
+          return; 
+      }
+
+      // 2. Active State (Pending, Preparing, En Route)
       // Add Markers
       L.marker(originCoords, { icon: warehouseIcon }).addTo(this.map)
           .bindPopup(`<b>Warehouse</b><br>${warehouseCity}`);
@@ -183,44 +228,29 @@ export default {
       ]);
       this.map.fitBounds(group.getBounds().pad(0.2));
 
-      // 3. Draw Route (Try OSRM for Real Road, fallback to straight line)
-      let routeCoords = [originCoords, destCoords]; // Default straight
-      try {
-        const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${originCoords[1]},${originCoords[0]};${destCoords[1]},${destCoords[0]}?overview=full&geometries=geojson`;
-        const res = await fetch(osrmUrl);
-        const json = await res.json();
-        if (json.routes && json.routes.length > 0) {
-            // OSRM returns [lon, lat], Leaflet needs [lat, lon]
-            const coordinates = json.routes[0].geometry.coordinates;
-            routeCoords = coordinates.map(c => [c[1], c[0]]);
-        }
-      } catch (e) {
-          console.warn("OSRM routing failed, using straight line", e);
+      // 3. Draw Route (Simulated Straight Line + Curve for visual)
+      // We removed the OSRM fetch to prevent Network Errors / Simulated Mode.
+      // We'll create a simple curved path for better visuals than a straight line.
+      const routeCoords = this.getSimulatedRoute(originCoords, destCoords);
+
+      // 4. Draw Static Route if NOT En Route (e.g. Preparing)
+      if (!isEnRoute) {
+          L.polyline(routeCoords, { color: '#bdc3c7', weight: 4, dashArray: '10, 10', opacity: 0.7 }).addTo(this.map);
       }
 
-      // --- VISIBILITY LOGIC per Status ---
-      const plan = this.deliveryPlan;
-      const status = plan.status;
-      const isEnRoute = status === "En Route";
-      const isDelivered = status === "Delivered";
-
-      // Show Route Line ONLY if En Route or Delivered
-      if (isEnRoute || isDelivered) {
-          L.polyline(routeCoords, {
-              color: 'blue', 
-              weight: 4, 
-              opacity: 0.7
-          }).addTo(this.map);
-      }
-
-      // --- LIVE SIMULATION along the Route ---
-      // Show Truck ONLY if En Route
+      // 5. LIVE SIMULATION (Truck -> Home Line)
       if (isEnRoute && plan.departureTime) {
           const departure = new Date(plan.departureTime).getTime();
           const durationSec = this.primaryAllocation.durationValue || 120; // 2 mins demo fallback
           const arrival = departure + (durationSec * 1000);
           
+          // Use the simulated route for truck movement
           const truckMarker = L.marker(routeCoords[0], { icon: truckIcon }).addTo(this.map);
+          const routePolyline = L.polyline([], {
+              color: 'blue', 
+              weight: 4, 
+              opacity: 0.7
+          }).addTo(this.map);
 
           this.intervalId = setInterval(() => {
               const now = Date.now();
@@ -228,8 +258,6 @@ export default {
               if (progress < 0) progress = 0;
               if (progress > 1) progress = 1;
 
-              // Interpolate along the REAL route path
-              // Calculate total points index
               const totalPoints = routeCoords.length;
               const pointIndex = Math.floor(progress * (totalPoints - 1));
               const nextPointIndex = Math.min(pointIndex + 1, totalPoints - 1);
@@ -237,31 +265,82 @@ export default {
               const p1 = routeCoords[pointIndex];
               const p2 = routeCoords[nextPointIndex];
 
-              // Local interpolation
               const segmentProgress = (progress * (totalPoints - 1)) % 1;
               const currentLat = p1[0] + (p2[0] - p1[0]) * segmentProgress;
               const currentLng = p1[1] + (p2[1] - p1[1]) * segmentProgress;
               
-              truckMarker.setLatLng([currentLat, currentLng]);
+              const truckPos = [currentLat, currentLng];
+              truckMarker.setLatLng(truckPos);
+
+              // Update Blue Line: From Truck Position -> End of Route
+              const remainingPath = [truckPos, ...routeCoords.slice(nextPointIndex)];
+              routePolyline.setLatLngs(remainingPath);
               
-              if (progress >= 1) clearInterval(this.intervalId);
+              if (progress >= 1) {
+                  clearInterval(this.intervalId);
+              }
           }, 1000);
       }
     },
     beforeUnmount() {
         if (this.intervalId) clearInterval(this.intervalId);
     },
+    // Safe Geocoding with Timeout to prevent Infinite Loading
     async geocode(query) {
-      try {
-        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
-        const data = await response.json();
-        if (data && data.length > 0) {
-          return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+        // 1. Try Real API (Nominatim) for accuracy
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 2000); // 2s Timeout
+
+            const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`, {
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            
+            const data = await response.json();
+            if (data && data.length > 0) {
+                return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+            }
+        } catch (e) {
+            console.warn("Geocoding API failed/timed out, switching to fallback:", e);
         }
-      } catch (e) {
-        console.error("Geocoding failed", e);
-      }
-      return null;
+
+        // 2. Fallback Simulation (if API fails or timeouts)
+        const q = query.toLowerCase();
+        
+        // Specific Fallbacks
+        if (q.includes('villepinte')) return [48.9634, 2.5469];
+        if (q.includes('paris')) return [48.8566, 2.3522];
+        if (q.includes('lyon')) return [45.7640, 4.8357];
+        if (q.includes('marseille')) return [43.2965, 5.3698];
+        if (q.includes('lille')) return [50.6292, 3.0573];
+        if (q.includes('bordeaux')) return [44.8378, -0.5792];
+        if (q.includes('nice')) return [43.7102, 7.2620];
+        if (q.includes('toulouse')) return [43.6047, 1.4442];
+
+        // Default Center
+        return [48.8566, 2.3522]; 
+    },
+    // Generate some intermediate points for a curved line
+    getSimulatedRoute(start, end) {
+        const points = [];
+        const numPoints = 50;
+        for (let i = 0; i <= numPoints; i++) {
+            const t = i / numPoints;
+            // Simple linear interpolation for now to be safe
+            // const lat = start[0] + (end[0] - start[0]) * t;
+            // const lng = start[1] + (end[1] - start[1]) * t;
+            
+            // Quadratic Bezier for Curve? 
+            // Control point: Midpoint + Offset
+            // Let's keep it straight for simplicity as 'Fast Mode', 
+            // or just slightly offset midpoint
+            const lat = start[0] * (1-t) + end[0] * t;
+            const lng = start[1] * (1-t) + end[1] * t;
+
+            points.push([lat, lng]);
+        }
+        return points;
     }
   }
 };

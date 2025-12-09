@@ -32,7 +32,7 @@
           {{ number_Cart_Items }} <p>Items</p>
         </div>
         <div class="items_menu">
-          {{ totalPrice }}$ <p>Total Amount</p>
+          {{ totalPrice }}€ <p>Total Amount</p>
         </div>
       </template>
 
