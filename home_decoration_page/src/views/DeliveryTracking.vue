@@ -148,10 +148,15 @@ export default {
       if (!this.primaryAllocation) return;
 
       const warehouseCity = this.primaryAllocation.warehouseCity;
-      // Use the actual address from backend, or fallback to warehouse city if missing
       const customerAddr = this.primaryAllocation.destinationAddress || "Paris, France"; 
       console.log("Tracking Address:", customerAddr); // Debug
-      const warehouseAddr = `${warehouseCity}, France`; 
+      
+      // Construct specific warehouse address if available, otherwise fallback to city
+      let warehouseAddr = `${warehouseCity}, France`;
+      if (this.primaryAllocation.warehouseAddressLine1) {
+          warehouseAddr = `${this.primaryAllocation.warehouseAddressLine1}, ${this.primaryAllocation.warehousePostalCode} ${warehouseCity}, ${this.primaryAllocation.warehouseCountry}`;
+      }
+      console.log("Warehouse Address:", warehouseAddr); // Debug 
 
       // 1. Initialize Map
       this.map = L.map('map').setView([46.603354, 1.888334], 6); // Center of France

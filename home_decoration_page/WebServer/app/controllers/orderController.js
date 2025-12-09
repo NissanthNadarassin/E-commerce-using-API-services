@@ -7,7 +7,7 @@ const Inventory = db.inventory;
 const axios = require("axios");
 
 // TOGGLE THIS FOR TIMING MODE
-const USE_DEMO_TIMINGS = false; // Set to true for ~1min fast testing, false for Real Life logic
+const USE_DEMO_TIMINGS = true; // Set to true for ~1min fast testing, false for Real Life logic
 
 // Create a new order
 exports.createOrder = async (req, res) => {
@@ -759,6 +759,10 @@ exports.processDelivery = async (req, res) => {
         eta: eta,
         mapUrl: `https://www.google.com/maps/embed/v1/directions?key=${process.env.GOOGLE_MAPS_API_KEY || 'YOUR_API_KEY_HERE'}&origin=${encodeURIComponent(wh.city)}&destination=${encodeURIComponent(customerAddress)}&mode=driving`,
         checkMapLink: `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(wh.city)}&destination=${encodeURIComponent(customerAddress)}&travelmode=driving`,
+        // NEW: Specific Address for Geocoding
+        warehouseAddressLine1: wh.address_line1,
+        warehousePostalCode: wh.postal_code,
+        warehouseCountry: wh.country,
         items: []
       };
 
