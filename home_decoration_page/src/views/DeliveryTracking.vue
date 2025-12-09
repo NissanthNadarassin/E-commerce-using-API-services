@@ -31,6 +31,63 @@
         <div id="map" class="map-embed-container" v-if="primaryAllocation"></div>
       </div>
 
+      <!-- Toggle Button (Moved Below Map) -->
+      <button @click="toggleDetails" class="toggle-details-btn">
+        {{ showDetails ? 'Hide Shipping Details' : 'Show Shipping Details' }}
+      </button>
+
+      <!-- Detailed Info Section (Moved Below Button) -->
+      <transition name="slide-fade">
+        <div v-if="showDetails" class="details-section">
+            <div class="consolidation-info" v-if="deliveryPlan.consolidation && deliveryPlan.consolidation.isConsolidating">
+                <h3><i class="fas fa-warehouse"></i> Multi-Warehouse Consolidation</h3>
+                <p class="hub-info">All items are being consolidated at our Hub in <strong>{{ deliveryPlan.consolidation.hub.city }}</strong> before final delivery.</p>
+                
+                <div class="transfers-list">
+                    <div v-for="(transfer, index) in deliveryPlan.consolidation.transfers" :key="index" class="transfer-card">
+                        <div class="transfer-route">
+                            <span class="location">{{ transfer.fromCity }}</span>
+                            <i class="fas fa-arrow-right arrow"></i>
+                            <span class="location">{{ transfer.toHub }} (Hub)</span>
+                        </div>
+                        <div class="transfer-status">
+                            <span class="status-badge">{{ transfer.status }}</span>
+                            <span class="time">{{ transfer.durationText }} transfer time</span>
+                        </div>
+                        <ul class="transfer-items">
+                            <li v-for="item in transfer.items" :key="item.productId">
+                                {{ item.quantity }}x Product #{{ item.productId }}
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Updated Final Leg Info / Timeline -->
+            <div class="final-leg-info">
+                <h3><i class="fas fa-truck"></i> {{ deliveryPlan.allocations[0].warehouseCity }} Warehouse to {{ deliveryPlan.allocations[0].destinationLabel }}</h3>
+                
+                <!-- Timeline Component -->
+                <div class="timeline-container">
+                    <div v-for="(event, index) in deliveryPlan.timeline" :key="index" 
+                         class="timeline-item" 
+                         :class="{ 'completed': event.isCompleted, 'active': !event.isCompleted && index === 0 }">
+                        <div class="timeline-marker"></div>
+                        <div class="timeline-content">
+                            <h4 class="timeline-title">{{ event.status }}</h4>
+                            <p class="timeline-desc">{{ event.description }}</p>
+                            <span class="timeline-time">{{ new Date(event.time).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit'}) }}</span>
+                            <!-- Estimated Travel Time (Visible only for Delivered event) -->
+                            <p v-if="event.status === 'Delivered'" class="travel-time-highlight">
+                                <i class="fas fa-hourglass-half"></i> Travel Time: <strong>{{ deliveryPlan.allocations[0].durationText }}</strong>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+      </transition>
+
       <button @click="goBack" class="back-btn">Back to Orders</button>
     </div>
   </div>
@@ -57,7 +114,8 @@ export default {
       deliveryPlan: null,
       loading: true,
       error: null,
-      map: null
+      map: null,
+      showDetails: false
     };
   },
   computed: {
@@ -362,6 +420,9 @@ export default {
         }
         // Fallback to straight line
         return this.getSimulatedRoute(start, end);
+    },
+    toggleDetails() {
+        this.showDetails = !this.showDetails;
     }
   }
 };
@@ -489,6 +550,181 @@ export default {
 .back-btn:hover {
   background: #34495e;
   transform: translateY(-2px);
+}
+
+.toggle-details-btn {
+  background: #3498db;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 20px;
+  cursor: pointer;
+  margin-bottom: 20px;
+  font-weight: 600;
+  width: 100%;
+  transition: background 0.3s;
+}
+
+.toggle-details-btn:hover {
+  background: #2980b9;
+}
+
+.details-section {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  border: 1px solid #e9ecef;
+}
+
+.consolidation-info h3, .final-leg-info h3 {
+  font-size: 1.1rem;
+  color: #2c3e50;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.hub-info {
+  margin-bottom: 15px;
+  color: #555;
+  font-style: italic;
+}
+
+.transfer-card {
+  background: white;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  border-left: 4px solid #f39c12;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.transfer-route {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: bold;
+  color: #2c3e50;
+  margin-bottom: 8px;
+}
+
+.arrow {
+  color: #7f8c8d;
+}
+
+.transfer-status {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: #7f8c8d;
+  margin-bottom: 8px;
+}
+
+.status-badge {
+  background: #fae5d3;
+  color: #d35400;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
+.transfer-items {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 0.85rem;
+  color: #555;
+}
+
+.final-leg-info {
+  margin-top: 20px;
+  border-top: 1px solid #e9ecef;
+  padding-top: 20px;
+}
+
+/* Timeline Styles */
+.timeline-container {
+  margin-top: 15px;
+  padding-left: 10px;
+  border-left: 2px solid #e0e0e0;
+  margin-left: 10px;
+}
+
+.timeline-item {
+  position: relative;
+  padding-left: 20px;
+  margin-bottom: 25px;
+}
+
+.timeline-item:last-child {
+  margin-bottom: 0;
+}
+
+.timeline-marker {
+  position: absolute;
+  left: -6px; /* Center on border line */
+  top: 5px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #bdc3c7;
+  border: 2px solid white;
+}
+
+.timeline-item.completed .timeline-marker {
+  background: #27ae60;
+  box-shadow: 0 0 0 2px rgba(39, 174, 96, 0.2);
+}
+
+.timeline-content {
+  background: white;
+  padding: 10px 15px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+  border: 1px solid #f0f0f0;
+}
+
+.timeline-title {
+  margin: 0 0 5px 0;
+  font-size: 0.95rem;
+  color: #2c3e50;
+  font-weight: 600;
+}
+
+.timeline-desc {
+  margin: 0 0 5px 0;
+  font-size: 0.85rem;
+  color: #7f8c8d;
+}
+
+.timeline-time {
+  font-size: 0.75rem;
+  color: #95a5a6;
+  display: block;
+}
+
+.estimated-travel {
+    margin-top: 20px;
+    background: #e8f6f3;
+    padding: 10px;
+    border-radius: 6px;
+    color: #16a085;
+    text-align: center;
+}
+
+/* Transition Effects */
+.slide-fade-enter-active {
+  transition: all 0.3s ease-out;
+}
+.slide-fade-leave-active {
+  transition: all 0.3s ease-in;
+}
+.slide-fade-enter-from,
+.slide-fade-leave-to {
+  transform: translateY(-10px);
+  opacity: 0;
 }
 
 @keyframes slideUp {
