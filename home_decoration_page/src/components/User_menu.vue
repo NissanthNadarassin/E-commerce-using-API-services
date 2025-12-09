@@ -45,11 +45,11 @@
         </div>
         <!-- User and Admin -->
         <div v-else class="user_logged_buttons">
-          <router-link to="/profile" class="profile_icon_link">
-            <font-awesome-icon :icon="['fas', 'user']" />
+          <router-link to="/profile" class="profile_link_container">
+            <font-awesome-icon :icon="['fas', 'user']" class="profile_icon" />
+            <span class="profile_name">{{ userName }}</span>
           </router-link>
-          <span>{{ userName }}</span>
-          <button @click.prevent="logout">Logout</button>
+          <button @click.prevent="logout" class="logout_btn">Logout</button>
         </div>
       </div>
     </div>
@@ -156,7 +156,8 @@ export default {
 }
 
 .menu_right_section {
-  justify-content: center;
+  justify-content: flex-end; /* Moved to right corner */
+  padding-right: 30px; /* Add spacing from edge */
   width: 40%;
 }
 
@@ -195,21 +196,25 @@ export default {
   gap: 10px;
 }
 
-.right_section__buttons button {
+.right_section__buttons button, .logout_btn {
   background-color: #243e36;
   border: 1px solid #243e36;
   color: white;
   border-radius: 20px;
-  padding: 7px 15px;
+  padding: 8px 20px; /* Increased padding */
   font-size: 14px;
+  font-weight: 600; /* Bolder text */
   cursor: pointer;
-  transition: background-color 0.3s ease-in-out;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* Added subtle shadow */
+  transition: all 0.3s ease-in-out;
 }
 
-.right_section__buttons button:hover {
+.right_section__buttons button:hover, .logout_btn:hover {
   background-color: white;
   color: #243e36;
   border: 1px solid #243e36;
+  transform: translateY(-1px); /* Subtle lift on hover */
+  box-shadow: 0 4px 6px rgba(0,0,0,0.15);
 }
 
 .right_section__buttons span {
@@ -245,21 +250,33 @@ export default {
   gap: 10px;
 }
 
-.profile_icon_link {
+.profile_link_container {
   display: flex;
   align-items: center;
-  color: #243e36;
-  font-size: 20px;
-  transition: color 0.3s;
+  gap: 8px;
+  text-decoration: none;
+  border-radius: 20px;
+  padding: 5px 10px;
+  transition: background-color 0.2s;
 }
 
-.profile_icon_link:hover {
-  color: #1a2d26;
+.profile_link_container:hover {
+  background-color: rgba(36, 62, 54, 0.1);
+}
+
+.profile_icon {
+  color: #243e36;
+  font-size: 20px;
+}
+
+.profile_name {
+  font-weight: bold;
+  color: #243e36;
 }
 
 .right_section__buttons_box{
   display: flex;
-  gap: 10px
+  gap: 15px; /* Increased gap */
 }
 @media (max-width: 800px) {
   .menu {

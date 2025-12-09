@@ -103,16 +103,18 @@ export default {
     justify-content: center;
     background-color: #243E36;
     width: 100%;
-   
+    gap: 30px; /* Added gap for better spacing */
+    padding: 40px 20px; /* Added container padding */
 }
 
 .product-item{
-    margin: 20px;
+    /* Removed margin since we use gap now */
     width: 250px;
-    height: 350px;
+    height: auto; /* Changed from fixed height to auto */
+    min-height: 380px; /* Ensure consistency */
     background-color: #f0e9d7;
     border-radius: 10px;
-    padding: 10px;
+    padding: 15px; /* Increased padding */
     transition: transform 0.3s ease-in-out;
     display: flex;
     flex-direction: column;
