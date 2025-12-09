@@ -236,7 +236,8 @@ export default {
       // 3. Draw Route (Simulated Straight Line + Curve for visual)
       // We removed the OSRM fetch to prevent Network Errors / Simulated Mode.
       // We'll create a simple curved path for better visuals than a straight line.
-      const routeCoords = this.getSimulatedRoute(originCoords, destCoords);
+      // 3. Draw Route (Real Road Path via OSRM)
+      const routeCoords = await this.fetchRoadRoute(originCoords, destCoords);
 
       // 4. Draw Static Route if NOT En Route (e.g. Preparing)
       if (!isEnRoute) {
@@ -290,27 +291,34 @@ export default {
     beforeUnmount() {
         if (this.intervalId) clearInterval(this.intervalId);
     },
-    // Safe Geocoding with Timeout to prevent Infinite Loading
-    async geocode(query) {
+    // Safe Geocoding with Timeout & Retry
+    async geocode(query, retries = 1) {
         // 1. Try Real API (Nominatim) for accuracy
-        try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 2000); // 2s Timeout
+        for (let i = 0; i <= retries; i++) {
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 5000); // Increased 5s Timeout
 
-            const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`, {
-                signal: controller.signal
-            });
-            clearTimeout(timeoutId);
-            
-            const data = await response.json();
-            if (data && data.length > 0) {
-                return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+                const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`, {
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+                
+                if (!response.ok) throw new Error("Network response was not ok");
+
+                const data = await response.json();
+                if (data && data.length > 0) {
+                    return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+                }
+            } catch (e) {
+                console.warn(`Geocoding attempt ${i + 1} failed:`, e);
+                // Wait small delay before retry
+                if (i < retries) await new Promise(r => setTimeout(r, 1000));
             }
-        } catch (e) {
-            console.warn("Geocoding API failed/timed out, switching to fallback:", e);
         }
 
-        // 2. Fallback Simulation (if API fails or timeouts)
+        // 2. Fallback Simulation (if API fails after retries)
+        console.warn("All geocoding attempts failed. Using fallback for:", query);
         const q = query.toLowerCase();
         
         // Specific Fallbacks
@@ -332,20 +340,28 @@ export default {
         const numPoints = 50;
         for (let i = 0; i <= numPoints; i++) {
             const t = i / numPoints;
-            // Simple linear interpolation for now to be safe
-            // const lat = start[0] + (end[0] - start[0]) * t;
-            // const lng = start[1] + (end[1] - start[1]) * t;
-            
-            // Quadratic Bezier for Curve? 
-            // Control point: Midpoint + Offset
-            // Let's keep it straight for simplicity as 'Fast Mode', 
-            // or just slightly offset midpoint
             const lat = start[0] * (1-t) + end[0] * t;
             const lng = start[1] * (1-t) + end[1] * t;
-
             points.push([lat, lng]);
         }
         return points;
+    },
+    async fetchRoadRoute(start, end) {
+        try {
+            // OSRM expects lon,lat; Leaflet uses lat,lon
+            const url = `https://router.project-osrm.org/route/v1/driving/${start[1]},${start[0]};${end[1]},${end[0]}?overview=full&geometries=geojson`;
+            const response = await fetch(url);
+            const data = await response.json();
+            
+            if (data.routes && data.routes.length > 0) {
+               // Flip [lon, lat] to [lat, lon] for Leaflet
+               return data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+            }
+        } catch (e) {
+            console.warn("OSRM Failed, using fallback:", e);
+        }
+        // Fallback to straight line
+        return this.getSimulatedRoute(start, end);
     }
   }
 };
