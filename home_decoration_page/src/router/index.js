@@ -13,6 +13,7 @@ import UserManagement from "../views/UserManagement.vue";
 import WarehouseManagement from "../views/WarehouseManagement.vue";
 import Orders from "../views/Orders.vue";
 import AdminDashboard from "../views/AdminDashboard.vue";
+import Checkout from "../views/Checkout.vue";
 
 const routes = [
   {
@@ -44,6 +45,12 @@ const routes = [
     path: "/cart",
     name: "Cart",
     component: Cart,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: "/checkout",
+    name: "Checkout",
+    component: Checkout,
     meta: { requiresAuth: true },
   },
   {

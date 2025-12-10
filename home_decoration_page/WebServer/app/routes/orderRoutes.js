@@ -14,7 +14,11 @@ router.get("/", [authJwt.verifyToken], orderController.getUserOrders);
 router.get("/:id", [authJwt.verifyToken], orderController.getOrderById);
 
 // Cancel order (user's own pending order)
+// Cancel order (user's own pending order)
 router.put("/:id/cancel", [authJwt.verifyToken], orderController.cancelOrder);
+
+// Return order (user's delivered order)
+router.put("/:id/return", [authJwt.verifyToken], orderController.returnOrder);
 
 // Admin routes
 // Get all orders (Admin only)

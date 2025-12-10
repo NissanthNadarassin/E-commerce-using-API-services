@@ -71,6 +71,24 @@
       </div>
     </div>
 
+    
+    <!-- Generic Confirmation Modal -->
+    <div v-if="showConfirmModal" class="modal_overlay" @click.self="closeConfirmModal">
+      <div class="modal_content">
+        <div class="modal_header">
+          <h3>{{ confirmModalTitle }}</h3>
+          <button @click="closeConfirmModal" class="close_btn">&times;</button>
+        </div>
+        <div class="modal_body">
+            <p>{{ confirmModalMessage }}</p>
+        </div>
+        <div class="form_actions">
+          <button @click="closeConfirmModal" class="cancel_btn">No, Keep It</button>
+          <button @click="confirmAction" class="submit_btn delete_account_btn">Yes, Confirm</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Addresses Section (User Only) -->
     <div v-if="!isAdmin" class="addresses_section">
       <h3>My Addresses</h3>
@@ -222,21 +240,34 @@
                 </div>
                 <div class="order_actions">
                   <button 
-                    v-if="order.status.toLowerCase() !== 'completed'"
+                    v-if="canTrack(order.status)"
                     @click="trackOrder(order.id)"
                     class="track_btn"
                   >
                     Track Order
                   </button>
+
                   <button 
-                    v-if="order.status === 'pending'" 
+                    v-if="canCancel(order.status)" 
                     @click="cancelOrder(order.id)"
                     class="cancel_btn"
                   >
                     Cancel Order
                   </button>
-                  <span v-else-if="order.status === 'cancelled'" class="cancelled_text">
+
+                  <button 
+                    v-if="canReturn(order.status)" 
+                    @click="returnOrder(order.id)"
+                    class="return_btn"
+                  >
+                    Return Order
+                  </button>
+
+                  <span v-if="order.status === 'cancelled'" class="cancelled_text">
                     Order Cancelled
+                  </span>
+                  <span v-if="order.status === 'returned'" class="cancelled_text">
+                    Returned
                   </span>
                 </div>
               </div>
@@ -326,6 +357,12 @@ export default {
         is_default_shipping: false,
         is_default_billing: false,
       },
+      // Confirmation Modal State
+      showConfirmModal: false,
+      confirmModalTitle: '',
+      confirmModalMessage: '',
+      pendingAction: null, // 'cancel' or 'return'
+      pendingOrderId: null,
     };
   },
   computed: {
@@ -474,18 +511,11 @@ export default {
     },
 
     async deleteAddress(addressId) {
-      if (!confirm('Are you sure you want to delete this address?')) {
-        return;
-      }
-
-      try {
-        await apiService.delete(`/api/users/addresses/${addressId}`);
-        alert('Address deleted successfully!');
-        await this.fetchAddresses();
-      } catch (error) {
-        console.error('Error deleting address:', error);
-        alert(error.response?.data?.message || 'Failed to delete address');
-      }
+      this.pendingOrderId = addressId; // Reusing this var as targetId
+      this.pendingAction = 'delete_address';
+      this.confirmModalTitle = 'Delete Address';
+      this.confirmModalMessage = 'Are you sure you want to delete this address?';
+      this.showConfirmModal = true;
     },
 
     closeAddressForm() {
@@ -509,25 +539,73 @@ export default {
       this.$router.push(`/product/${productId}`);
     },
     
-    trackOrder(orderId) {
+
+    async trackOrder(orderId) {
       this.$router.push(`/track-delivery/${orderId}`);
     },
     
     async cancelOrder(orderId) {
-      if (!confirm('Are you sure you want to cancel this order? Stock will be restored.')) {
-        return;
-      }
+      this.pendingOrderId = orderId;
+      this.pendingAction = 'cancel';
+      this.confirmModalTitle = 'Cancel Order';
+      this.confirmModalMessage = 'Are you sure you want to cancel this order? Stock will be restored.';
+      this.showConfirmModal = true;
+    },
 
-      try {
-        const response = await apiService.put(`/api/orders/${orderId}/cancel`);
-        alert(response.data.message || 'Order cancelled successfully!');
+    async returnOrder(orderId) {
+        this.pendingOrderId = orderId;
+        this.pendingAction = 'return';
+        this.confirmModalTitle = 'Return Order';
+        this.confirmModalMessage = 'Do you want to return this order? This will initiate the return process.';
+        this.showConfirmModal = true;
+    },
+
+    async confirmAction() {
+        if (!this.pendingOrderId && !this.pendingAction) return; 
         
-        // Refresh orders list
-        await this.fetchOrders();
-      } catch (error) {
-        console.error('Error cancelling order:', error);
-        alert(error.response?.data?.message || 'Failed to cancel order');
-      }
+        // For account/address delete, we might not have pendingOrderId but maybe a generic pendingId
+        // Let's generalize pendingOrderId to pendingTargetId
+        
+        this.showConfirmModal = false;
+
+        try {
+            let response;
+            if (this.pendingAction === 'cancel') {
+                 await apiService.put(`/api/orders/${this.pendingOrderId}/cancel`);
+                 // alert('Order cancelled'); // Optional: replace with toast if needed, for now rely on UI update
+            } else if (this.pendingAction === 'return') {
+                 await apiService.put(`/api/orders/${this.pendingOrderId}/return`);
+            } else if (this.pendingAction === 'delete_address') {
+                 await apiService.delete(`/api/users/addresses/${this.pendingOrderId}`);
+                 await this.fetchAddresses();
+                 return; // addresses fetch handles UI
+            } else if (this.pendingAction === 'delete_account') {
+                 await apiService.delete('/api/users/profile');
+                 localStorage.removeItem('user');
+                 localStorage.removeItem('userName');
+                 this.$router.push('/');
+                 window.location.reload();
+                 return;
+            }
+            
+            // Refresh orders if generic action
+            if (['cancel', 'return'].includes(this.pendingAction)) {
+                await this.fetchOrders();
+            }
+        } catch (error) {
+            console.error(`Error processing ${this.pendingAction}:`, error);
+            // Fallback for error notification if alert is broken?
+            // console.log is safe. Maybe set a global error banner?
+        } finally {
+            this.pendingOrderId = null;
+            this.pendingAction = null;
+        }
+    },
+    
+    closeConfirmModal() {
+        this.showConfirmModal = false;
+        this.pendingOrderId = null;
+        this.pendingAction = null;
     },
     
     formatDate(dateString) {
@@ -548,6 +626,21 @@ export default {
         'status_completed': status === 'completed',
         'status_cancelled': status === 'cancelled'
       };
+    },
+
+    canCancel(status) {
+      const s = status.toLowerCase();
+      return ['pending', 'preparing', 'processing'].includes(s);
+    },
+
+    canReturn(status) {
+      const s = status.toLowerCase();
+      return ['delivered', 'completed'].includes(s);
+    },
+    
+    canTrack(status) {
+      const s = status.toLowerCase();
+      return ['pending', 'preparing', 'processing', 'en route'].includes(s) && s !== 'cancelled';
     },
     
     closeEditEmailForm() {
@@ -741,6 +834,19 @@ h3 {
 
 .delete_account_btn:hover {
   background-color: #bb2d3b;
+}
+
+.return_btn {
+  padding: 6px 12px;
+  background-color: #ffc107;
+  color: #000;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-left: 5px;
+}
+.return_btn:hover {
+  background-color: #e0a800;
 }
 
 .edit_email_form,
@@ -1285,6 +1391,13 @@ h3 {
   .track_btn {
     width: 100%;
   }
+}
+
+.modal_body {
+    padding: 20px 0;
+    font-size: 16px;
+    color: #555;
+    text-align: center;
 }
 
 .orders_subsection {

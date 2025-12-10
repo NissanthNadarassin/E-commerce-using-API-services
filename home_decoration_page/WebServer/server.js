@@ -11,6 +11,7 @@ const orderRoutes = require("./app/routes/orderRoutes");
 const inventoryRoutes = require("./app/routes/inventoryRoutes");
 const reviewRoutes = require("./app/routes/reviewRoutes");
 const warehouseRoutes = require("./app/routes/warehouseRoutes");
+const paymentRoutes = require("./app/routes/paymentRoutes");
 
 // Import seed functions
 const seedAdmin = require("./seedAdmin");
@@ -38,6 +39,7 @@ app.use("/api/orders", orderRoutes); // Order routes
 app.use("/api/inventory", inventoryRoutes); // Inventory routes
 app.use("/api/reviews", reviewRoutes); // Review routes
 app.use("/api/warehouses", warehouseRoutes); // Warehouse routes
+require("./app/routes/paymentRoutes")(app); // Payment routes
 
 // Define the initial function to seed roles
 async function initial() {

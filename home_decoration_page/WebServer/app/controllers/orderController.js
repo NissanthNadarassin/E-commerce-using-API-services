@@ -358,22 +358,28 @@ exports.cancelOrder = async (req, res) => {
       return res.status(404).send({ message: "Order not found." });
     }
 
-    // Only allow cancellation if not already cancelled.
-    // Assuming we can cancel even if "processing" logically, but technically usually "pending".
-    // User requested restoration.
-    if (order.status === "cancelled") {
+    // Updated Logic: Allow cancellation for pending, preparing, processing
+    // Block if En Route, Delivered, Completed
+    // If "cancelled" already -> block
+    const allowedCancelStatuses = ["pending", "preparing", "processing"];
+    const statusLower = order.status.toLowerCase();
+
+    if (statusLower === "cancelled") {
       await transaction.rollback();
       return res.status(400).send({ message: "Order is already cancelled." });
     }
 
+    if (!allowedCancelStatuses.includes(statusLower)) {
+      await transaction.rollback();
+      return res.status(400).send({ message: `Cannot cancel order with status '${order.status}'. It may be en route or delivered.` });
+    }
+
     // Restore inventory for each item
     for (const item of order.items) {
-      // Find ANY warehouse that has this product to restore stock to.
-      // Ideally we would restore to the exact warehouse, but we don't track which warehouse fufilled which item in OrderItem (yet).
-      // So we pick the first available one to just increment the count back.
+      // Find ANY warehouse that has this product
       const inventory = await Inventory.findOne({
         where: { productId: item.productId },
-        order: [['quantity_available', 'DESC']], // Add to the one with most stock or just any
+        order: [['quantity_available', 'DESC']],
         transaction
       });
 
@@ -399,6 +405,45 @@ exports.cancelOrder = async (req, res) => {
   } catch (error) {
     await transaction.rollback();
     console.error("Error cancelling order:", error.message);
+    res.status(500).send({ message: error.message });
+  }
+};
+
+// Return Order (User can return delivered items)
+exports.returnOrder = async (req, res) => {
+  const transaction = await db.sequelize.transaction();
+  try {
+    const orderId = req.params.id;
+    const userId = req.userId;
+
+    const order = await Order.findOne({
+      where: { id: orderId, userId },
+      transaction
+    });
+
+    if (!order) {
+      await transaction.rollback();
+      return res.status(404).send({ message: "Order not found." });
+    }
+
+    const s = order.status.toLowerCase();
+    if (s !== "delivered" && s !== "completed") {
+      await transaction.rollback();
+      return res.status(400).send({ message: "Order must be Delivered or Completed to be returned." });
+    }
+
+    // Update status to 'returned'
+    // NOTE: We do NOT automatically restore stock for returns usually, as it needs inspection.
+    // For this API demo, we will just mark it as returned.
+    order.status = "returned";
+    await order.save({ transaction });
+
+    await transaction.commit();
+
+    res.status(200).send({ message: "Return processed successfully.", order });
+  } catch (error) {
+    await transaction.rollback();
+    console.error("Error returning order:", error);
     res.status(500).send({ message: error.message });
   }
 };

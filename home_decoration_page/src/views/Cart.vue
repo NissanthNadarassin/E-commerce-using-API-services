@@ -14,38 +14,9 @@
     </ul>
     
     <div class="checkout-section" v-if="cart_products.length !== 0">
-      <div class="address-selection">
-        <h3>Delivery Address</h3>
-        
-        <div v-if="!showAddAddress && addresses.length > 0">
-          <select v-model="selectedAddressId" class="address-select">
-            <option :value="null" disabled>Select an address</option>
-            <option v-for="addr in addresses" :key="addr.id" :value="addr.id">
-              {{ addr.label }} - {{ addr.address_line1 }}, {{ addr.city }}
-            </option>
-          </select>
-          <button @click="showAddAddress = true" class="secondary-btn">Add New Address</button>
-        </div>
-
-        <div v-if="showAddAddress || addresses.length === 0" class="new-address-form">
-          <h4>Add New Address</h4>
-          <input v-model="newAddress.label" placeholder="Label (e.g. Home, Work)" />
-          <input v-model="newAddress.address_line1" placeholder="Address Line 1" />
-          <input v-model="newAddress.city" placeholder="City" />
-          <input v-model="newAddress.postal_code" placeholder="Postal Code" />
-          <input v-model="newAddress.country" placeholder="Country" />
-          <input v-model="newAddress.phone" placeholder="Phone" />
-          
-          <div class="form-actions">
-             <button @click="saveNewAddress" class="primary-btn">Save Address</button>
-             <button v-if="addresses.length > 0" @click="showAddAddress = false" class="text-btn">Cancel</button>
-          </div>
-        </div>
-      </div>
-
       <div class="total">
-        <p>Total to pay : {{ totalPrice }}€ ({{number_Cart_Items}} {{ number_Cart_Items === 1 ? 'product' : 'products' }})</p>
-        <button @click="createOrder" class="checkout-btn" :disabled="!selectedAddressId">Place Order</button>
+        <p>Total to pay : {{ totalPrice.toFixed(2) }}€ ({{number_Cart_Items}} {{ number_Cart_Items === 1 ? 'product' : 'products' }})</p>
+        <button @click="goToCheckout" class="checkout-btn">Proceed to Checkout</button>
       </div>
     </div>
   </div>
@@ -69,17 +40,7 @@ export default {
   },
   data() {
     return {
-      addresses: [],
-      selectedAddressId: null,
-      showAddAddress: false,
-      newAddress: {
-        label: "Home",
-        address_line1: "",
-        city: "",
-        postal_code: "",
-        country: "",
-        phone: ""
-      }
+      // Data moved to Checkout
     };
   },
   async mounted() {
@@ -91,80 +52,28 @@ export default {
     },
 
     async fetchAddresses() {
-      try {
-        const token = localStorage.getItem('user');
-        if (!token) return; 
-        const response = await apiService.get('/api/users/addresses');
-        this.addresses = response.data;
-        if (this.addresses.length > 0) {
-          // Auto-select default shipping or first one
-          const defaultAddr = this.addresses.find(a => a.is_default_shipping);
-          this.selectedAddressId = defaultAddr ? defaultAddr.id : this.addresses[0].id;
-        } else {
-          this.showAddAddress = true;
-        }
-      } catch (error) {
-        console.error("Error fetching addresses", error);
-      }
+       // Only needed if we wanted to show something, but now we just move to checkout
     },
 
-    async saveNewAddress() {
-      try {
-        if (!this.newAddress.address_line1 || !this.newAddress.city) {
-          alert("Please fill in required fields");
-          return;
-        }
-        await apiService.post('/api/users/addresses', {
-          ...this.newAddress,
-          is_default_shipping: this.addresses.length === 0
-        });
-        await this.fetchAddresses();
-        this.showAddAddress = false;
-        // Reset form
-        this.newAddress = { label: "Home", address_line1: "", city: "", postal_code: "", country: "", phone: "" };
-      } catch (error) {
-        alert("Failed to save address");
-      }
+    saveNewAddress() {
+       // logic moved to checkout
     },
     
-    async createOrder() {
-      try {
-        const token = localStorage.getItem('user');
-        if (!token) {
-          alert('Please login to create an order');
-          this.$router.push('/login');
-          return;
-        }
-
-        if (!this.selectedAddressId) {
-          alert("Please select a delivery address.");
-          return;
-        }
-
-        const items = this.cart_products.map(product => ({
-          productId: product.id,
-          quantity: product.quantity_cart || 1,
-        }));
-
-        const response = await apiService.post('/api/orders', {
-          items,
-          shippingAddressId: this.selectedAddressId
-        });
-
-        alert(`Order created successfully! Order ID: ${response.data.orderId}`);
-        
-        const productsToRemove = [...this.cart_products];
-        productsToRemove.forEach(product => {
-          this.remove_cart_product(product);
-        });
-        
-        // Navigate to orders/tracking
-        this.$router.push('/profile');
-      } catch (error) {
-        console.error('Error creating order:', error);
-        alert(error.response?.data?.message || 'Failed to create order');
+    goToCheckout() {
+      // Just check auth then push
+      const token = localStorage.getItem('user');
+      if (!token) {
+        alert('Please login to checkout');
+        this.$router.push('/login');
+        return;
       }
+      this.$router.push('/checkout');
     },
+
+    // Legacy method name expected by template if not updated
+    createOrder() {
+       this.goToCheckout();
+    }
   },
 };
 </script>

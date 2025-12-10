@@ -101,8 +101,16 @@ export default {
           this.cart_products.splice(index, 1);
         }
     },
-    
-
+    clear_cart() {
+      // Reset all products quantity_cart
+      this.cart_products.forEach(item => {
+        item.quantity_cart = 0;
+      });
+      // Clear array
+      this.cart_products = [];
+      this.number_Cart_Items = 0;
+      this.totalPrice = 0.0;
+    },
   },
   computed: {
     viewProps() {
@@ -136,6 +144,13 @@ export default {
                   remove_one_unit_cart_product: this.remove_one_unit_cart_product,
                   remove_cart_product: this.remove_cart_product,
                   add_product_to_cart: this.add_product_to_cart,
+              };
+          
+          case 'Checkout':
+              return {
+                  cart_products: this.cart_products,
+                  totalPrice: this.totalPrice,
+                  clear_cart: this.clear_cart,
               };
 
           default:
