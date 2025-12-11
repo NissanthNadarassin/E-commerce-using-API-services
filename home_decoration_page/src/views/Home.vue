@@ -9,6 +9,9 @@
       </div>
       <img src="/imgs/main_image_home.jpg" alt="" />
     </section>
+      
+    <RecommendedProducts /> <!-- AI Recommendations -->
+
   
     <div class="main_categories_section">
       <h2>
@@ -45,11 +48,14 @@
   
 <script>
   import Catalog_product from "../components/Catalog_product.vue";
+  import RecommendedProducts from '../components/RecommendedProducts.vue'; // Import
+  import apiService from '../services/apiService';
   
   export default {
     name: "Home",
     components: {
       Catalog_product,
+      RecommendedProducts // Register
     },
     props: {
       add_product_to_cart: Function,

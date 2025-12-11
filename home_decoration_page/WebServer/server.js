@@ -12,6 +12,7 @@ const inventoryRoutes = require("./app/routes/inventoryRoutes");
 const reviewRoutes = require("./app/routes/reviewRoutes");
 const warehouseRoutes = require("./app/routes/warehouseRoutes");
 const paymentRoutes = require("./app/routes/paymentRoutes");
+const recommendationRoutes = require("./app/routes/recommendationRoutes"); // Import AI routes
 
 // Import seed functions
 const seedAdmin = require("./seedAdmin");
@@ -31,6 +32,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+
 // Use routes
 app.use("/api/auth", authRoutes); // Routes for authentication
 app.use("/api/products", productRoutes); // Product routes
@@ -40,6 +42,8 @@ app.use("/api/inventory", inventoryRoutes); // Inventory routes
 app.use("/api/reviews", reviewRoutes); // Review routes
 app.use("/api/warehouses", warehouseRoutes); // Warehouse routes
 require("./app/routes/paymentRoutes")(app); // Payment routes
+console.log("Calling recommendationRoutes(app)..."); // DEBUG
+recommendationRoutes(app); // Register AI routes
 
 // Define the initial function to seed roles
 async function initial() {
@@ -86,6 +90,8 @@ db.sequelize
 app.get("/", (req, res) => {
   res.json({ message: "Welcome to the Home Decoration API!" });
 });
+
+
 
 // Start the server
 const PORT = process.env.PORT || 5002;
