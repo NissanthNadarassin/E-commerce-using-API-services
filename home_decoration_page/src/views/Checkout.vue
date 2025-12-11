@@ -226,8 +226,8 @@ export default {
     },
     async saveNewAddress() {
       try {
-        if (!this.newAddress.address_line1 || !this.newAddress.city) {
-          alert("Please fill in required fields");
+        if (!this.newAddress.address_line1 || !this.newAddress.city || !this.newAddress.postal_code || !this.newAddress.country) {
+          alert("Please fill in required fields: Address, City, Postal Code, and Country");
           return;
         }
         const res = await apiService.post('/api/users/addresses', {
@@ -237,11 +237,16 @@ export default {
         await this.fetchAddresses();
         this.showAddAddress = false;
         // Select the new address
-        if(res.data && res.data.id) this.selectedAddressId = res.data.id;
+        if(res.data && res.data.address && res.data.address.id) {
+           this.selectedAddressId = res.data.address.id;
+        } else if (res.data && res.data.id) {
+           this.selectedAddressId = res.data.id;
+        }
         // Reset
         this.newAddress = { label: "Home", address_line1: "", city: "", postal_code: "", country: "", phone: "" };
       } catch (error) {
-        alert("Failed to save address");
+        console.error("Save address error:", error);
+        alert(error.response?.data?.message || "Failed to save address");
       }
     },
     nextStep() {

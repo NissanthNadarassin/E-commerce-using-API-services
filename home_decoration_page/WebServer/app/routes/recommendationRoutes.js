@@ -10,7 +10,6 @@ module.exports = function (app) {
         next();
     });
 
-    console.log("Registering /api/recommendations route..."); // DEBUG
     app.get(
         "/api/recommendations",
         [authJwt.verifyToken],

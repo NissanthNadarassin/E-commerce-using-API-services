@@ -1,3 +1,3 @@
 module.exports = {
-    'secret': 'your_secret'
-   };
+    secret: process.env.JWT_SECRET
+};

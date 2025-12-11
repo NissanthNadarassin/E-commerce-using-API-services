@@ -1,10 +1,10 @@
 module.exports = {
-    HOST: "localhost",
-    USER: "root", //Field to change
-    PASSWORD: "qsdfghjklm", //Field to change
-    DB: "home_decoration",
+    HOST: process.env.DB_HOST,
+    USER: process.env.DB_USER,
+    PASSWORD: process.env.DB_PASSWORD,
+    DB: process.env.DB_NAME,
     dialect: "mysql",
-    port: 3306, // Check that this port is 3306
+    port: process.env.DB_PORT || 3306,
     pool: {
         max: 5,
         min: 0,

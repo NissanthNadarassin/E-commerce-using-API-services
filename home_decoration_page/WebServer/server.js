@@ -1,5 +1,8 @@
 const express = require("express");
+require("dotenv").config(); // Load environment variables
 const cors = require("cors");
+const helmet = require("helmet"); // Security headers
+const rateLimit = require("express-rate-limit"); // Rate limiting
 const db = require("./app/models"); // Import models
 const Role = db.role; // Access the Role model
 
@@ -14,7 +17,6 @@ const warehouseRoutes = require("./app/routes/warehouseRoutes");
 const paymentRoutes = require("./app/routes/paymentRoutes");
 const recommendationRoutes = require("./app/routes/recommendationRoutes"); // Import AI routes
 
-// Import seed functions
 const seedAdmin = require("./seedAdmin");
 const seedWarehouses = require("./seedWarehouses");
 const seedProducts = require("./seedProducts");
@@ -26,6 +28,15 @@ const seedOrderItems = require("./seedOrderItems");
 const seedUser_address = require("./seedUser_address");
 
 const app = express();
+
+// Security Middleware
+app.use(helmet()); // Set security headers
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: "Too many requests from this IP, please try again later."
+});
+app.use(limiter); // Apply rate limiting globally
 
 // Middleware
 app.use(cors());
@@ -42,7 +53,6 @@ app.use("/api/inventory", inventoryRoutes); // Inventory routes
 app.use("/api/reviews", reviewRoutes); // Review routes
 app.use("/api/warehouses", warehouseRoutes); // Warehouse routes
 require("./app/routes/paymentRoutes")(app); // Payment routes
-console.log("Calling recommendationRoutes(app)..."); // DEBUG
 recommendationRoutes(app); // Register AI routes
 
 // Define the initial function to seed roles
