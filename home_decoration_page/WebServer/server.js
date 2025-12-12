@@ -3,6 +3,7 @@ require("dotenv").config(); // Load environment variables
 const cors = require("cors");
 const helmet = require("helmet"); // Security headers
 const rateLimit = require("express-rate-limit"); // Rate limiting
+const xss = require("xss-clean"); // XSS Protection
 const db = require("./app/models"); // Import models
 const Role = db.role; // Access the Role model
 
@@ -42,6 +43,9 @@ app.use(limiter); // Apply rate limiting globally
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Data Sanitization against XSS
+app.use(xss());
 
 
 // Use routes
