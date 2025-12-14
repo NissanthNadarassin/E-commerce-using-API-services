@@ -145,7 +145,8 @@ export default {
       const timeString = etaDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
       // Change text for Delivered/Completed
-      if (this.deliveryPlan.status === 'Delivered' || this.deliveryPlan.status === 'Completed') {
+      const statusLower = this.deliveryPlan.status ? this.deliveryPlan.status.toLowerCase() : "";
+      if (statusLower === 'delivered' || statusLower === 'completed') {
           if (isToday) return `Delivered today at ${timeString}`;
           return `Delivered on ${etaDate.toLocaleDateString()} at ${timeString}`;
       }
@@ -261,10 +262,10 @@ export default {
 
       // --- VISIBILITY LOGIC per Status ---
       const plan = this.deliveryPlan;
-      const status = plan.status;
-      const isEnRoute = status === "En Route";
-      const isDelivered = status === "Delivered";
-      const isCompleted = status === "Completed";
+      const status = plan.status ? plan.status.toLowerCase() : "";
+      const isEnRoute = status === "en route";
+      const isDelivered = status === "delivered";
+      const isCompleted = status === "completed";
 
       // 1. Delivered/Completed State: Show ONLY exact delivery location
       if (isDelivered || isCompleted) {
@@ -305,10 +306,16 @@ export default {
       // 5. LIVE SIMULATION (Truck -> Home Line)
       if (isEnRoute && plan.departureTime) {
           const departure = new Date(plan.departureTime).getTime();
-          const durationSec = this.primaryAllocation.durationValue || 120; // 2 mins demo fallback
+          const durationSec = this.primaryAllocation.durationValue || 30; // 30s demo fallback
           const arrival = departure + (durationSec * 1000);
+          console.log("[Truck Sim] Departure:", new Date(departure).toISOString(), "Arrival:", new Date(arrival).toISOString());
+          console.log("[Truck Sim] Duration (s):", durationSec);
           
           // Use the simulated route for truck movement
+          if (!routeCoords || routeCoords.length === 0) {
+             console.error("[Truck Sim] No route coordinates available for truck.");
+             return;
+          }
           const truckMarker = L.marker(routeCoords[0], { icon: truckIcon }).addTo(this.map);
           const routePolyline = L.polyline([], {
               color: 'blue', 
@@ -319,6 +326,8 @@ export default {
           this.intervalId = setInterval(() => {
               const now = Date.now();
               let progress = (now - departure) / (arrival - departure);
+              console.log("[Truck Sim] Tick. Progress:", progress.toFixed(2), "Now:", new Date(now).toISOString());
+              
               if (progress < 0) progress = 0;
               if (progress > 1) progress = 1;
 
@@ -510,6 +519,7 @@ export default {
   margin: 0;
   color: #2c3e50;
   font-size: 1.5rem;
+  text-transform: capitalize;
 }
 
 .eta-text {

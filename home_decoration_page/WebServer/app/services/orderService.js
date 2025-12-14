@@ -174,6 +174,9 @@ const calculateDynamicStatus = (order) => {
 // --- EXPORTED SERVICE METHODS ---
 
 exports.createOrder = async (userId, items, shippingAddressId) => {
+    // DEBUG LOG
+    console.log(`[OrderService] Creating Order. DemoMode: ${USE_DEMO_TIMINGS}, Time: ${new Date().toISOString()}`);
+
     const transaction = await db.sequelize.transaction();
     try {
         if (!items || items.length === 0) {
