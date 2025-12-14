@@ -395,81 +395,87 @@ export default {
   },
   methods: {
     async fetchUserProfile() {
+      // Combined GraphQL Fetch
       try {
         this.loadingUser = true;
-        
-        const token = localStorage.getItem('user');
-        if (!token) {
-          this.$router.push('/login');
-          return;
-        }
-
-        // Decode token to get user info
-        try {
-          const userData = JSON.parse(atob(token.split('.')[1]));
-          this.userInfo = {
-            id: userData.id,
-            username: localStorage.getItem('userName'),
-            email: userData.email || 'N/A',
-            roles: userData.roles || ['user'],
-            createdAt: userData.iat ? new Date(userData.iat * 1000).toISOString() : null
-          };
-        } catch (error) {
-          console.error('Error decoding token:', error);
-        }
-      } catch (error) {
-        console.error('Error fetching user profile:', error);
-      } finally {
-        this.loadingUser = false;
-      }
-    },
-
-    async fetchOrders() {
-      try {
         this.loadingOrders = true;
-        
-        const token = localStorage.getItem('user');
-        if (!token) {
-          this.$router.push('/login');
-          return;
-        }
-
-        const response = await apiService.get('/api/orders');
-        this.orders = response.data;
-      } catch (error) {
-        console.error('Error fetching orders:', error);
-        if (error.response?.status === 401) {
-          alert('Please login to view your orders');
-          this.$router.push('/login');
-        } else {
-          alert('Failed to load orders');
-        }
-      } finally {
-        this.loadingOrders = false;
-      }
-    },
-
-    async fetchAddresses() {
-      try {
         this.loadingAddresses = true;
         
         const token = localStorage.getItem('user');
         if (!token) {
+          this.$router.push('/login');
           return;
         }
 
-        const response = await apiService.get('/api/users/addresses');
-        this.addresses = response.data;
+        const query = `
+          {
+            me {
+              id
+              username
+              email
+              phone
+              orders {
+                id
+                total_amount
+                status
+                createdAt
+                items {
+                  id
+                  quantity
+                  price
+                  product {
+                    id
+                    product_name
+                    img
+                  }
+                }
+              }
+              addresses {
+                id
+                label
+                address_line1
+                address_line2
+                city
+                postal_code
+                country
+                phone
+                is_default_shipping
+                is_default_billing
+              }
+            }
+          }
+        `;
+        
+        const data = await apiService.graphQL(query);
+        const me = data.me;
+
+        // User Info
+        this.userInfo = {
+            id: me.id,
+            username: me.username,
+            email: me.email,
+            phone: me.phone,
+            roles: ['user'], // GraphQL simplified this, maybe add roles to schema later?
+            createdAt: null // Schema missing created_at for user, optional
+        };
+        
+        // Orders
+        this.orders = me.orders;
+
+        // Addresses
+        this.addresses = me.addresses;
+
       } catch (error) {
-        console.error('Error fetching addresses:', error);
-        if (error.response?.status !== 404) {
-          // 404 means no addresses yet, which is OK
-          console.error('Failed to load addresses');
-        }
+        console.error('Error fetching profile:', error);
       } finally {
+        this.loadingUser = false;
+        this.loadingOrders = false;
         this.loadingAddresses = false;
       }
     },
+    // fetchOrders and fetchAddresses are now redundant but kept empty or removed to avoid breaks if called elsewhere
+    async fetchOrders() {}, 
+    async fetchAddresses() {},
 
     async submitAddress() {
       try {

@@ -5,8 +5,22 @@ const API_URL = "/api/products"; // Base URL is already defined in apiClient
 // Fetch all products (Public)
 const getAllProducts = async () => {
   try {
-    const response = await apiClient.get(API_URL);
-    return response.data;
+    const query = `
+      {
+        products {
+          id
+          product_name
+          description
+          price
+          category
+          sku
+          img
+          isActive
+        }
+      }
+    `;
+    const data = await apiClient.graphQL(query);
+    return data.products;
   } catch (error) {
     console.error("Error fetching products:", error);
     throw error;
@@ -16,8 +30,22 @@ const getAllProducts = async () => {
 // Fetch a product by ID (Public)
 const getProductById = async (id) => {
   try {
-    const response = await apiClient.get(`${API_URL}/${id}`);
-    return response.data;
+    const query = `
+      query($id: Int!) {
+        product(id: $id) {
+          id
+          product_name
+          description
+          price
+          category
+          sku
+          img
+          isActive
+        }
+      }
+    `;
+    const data = await apiClient.graphQL(query, { id: parseInt(id) });
+    return data.product;
   } catch (error) {
     console.error("Error fetching product details:", error);
     throw error;

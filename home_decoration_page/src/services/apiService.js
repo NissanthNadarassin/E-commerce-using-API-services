@@ -22,4 +22,16 @@ apiClient.interceptors.request.use(
   }
 );
 
+// Helper for GraphQL queries
+apiClient.graphQL = async (query, variables = {}) => {
+  const response = await apiClient.post('/graphql', {
+    query,
+    variables
+  });
+  if (response.data.errors) {
+    throw new Error(response.data.errors[0].message);
+  }
+  return response.data.data;
+};
+
 export default apiClient;

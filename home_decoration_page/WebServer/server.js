@@ -48,6 +48,11 @@ app.use(express.urlencoded({ extended: true }));
 app.use(xss());
 
 
+const { graphqlHTTP } = require('express-graphql');
+const schema = require('./app/graphql/schema');
+const jwt = require("jsonwebtoken");
+const config = require("./app/config/auth.config");
+
 // Use routes
 app.use("/api/auth", authRoutes); // Routes for authentication
 app.use("/api/products", productRoutes); // Product routes
@@ -58,6 +63,37 @@ app.use("/api/reviews", reviewRoutes); // Review routes
 app.use("/api/warehouses", warehouseRoutes); // Warehouse routes
 require("./app/routes/paymentRoutes")(app); // Payment routes
 recommendationRoutes(app); // Register AI routes
+
+// --- GraphQL Setup ---
+
+// Loose Auth Middleware for GraphQL
+app.use((req, res, next) => {
+  const token = req.headers["x-access-token"];
+  if (token) {
+    jwt.verify(token, config.secret, (err, decoded) => {
+      if (!err && decoded) {
+        req.userId = decoded.id;
+      }
+      next();
+    });
+  } else {
+    next();
+  }
+});
+
+const depthLimit = require('graphql-depth-limit');
+
+app.use(
+  '/graphql',
+  graphqlHTTP((req) => ({
+    schema: schema,
+    graphiql: true,
+    context: {
+      userId: req.userId
+    },
+    validationRules: [depthLimit(5)], // Limit query depth to 5
+  }))
+);
 
 // Define the initial function to seed roles
 async function initial() {
