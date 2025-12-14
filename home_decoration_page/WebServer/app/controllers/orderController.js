@@ -76,8 +76,15 @@ exports.createOrder = async (req, res) => {
 };
 
 // --- TIME HELPERS ---
+
 const getPrepStartTime = (startDate) => {
   let current = new Date(startDate);
+
+  // DEMO MODE: Start immediately, ignore business hours
+  if (USE_DEMO_TIMINGS) {
+    return current;
+  }
+
   const OPEN_HOUR = 8;
   const CLOSE_HOUR = 19;
 
@@ -98,6 +105,11 @@ const addWarehouseHours = (startDate, hoursToAdd, prepStartTime) => {
   // DEMO SIMULATION: If hoursToAdd is small (decimal hours for minutes),
   // just add it directly. The warehouse hours logic was conflicting with minute-based demo.
   // We'll trust the "minutes" logic for the demo flow.
+  if (USE_DEMO_TIMINGS) {
+    const msToAdd = hoursToAdd * 60 * 60 * 1000;
+    return new Date(current.getTime() + msToAdd);
+  }
+
   if (hoursToAdd < 1) { // e.g. 0.05 (3 mins)
     const msToAdd = hoursToAdd * 60 * 60 * 1000;
     return new Date(current.getTime() + msToAdd);
@@ -146,9 +158,9 @@ const calculateDynamicStatus = (order) => {
   let prepHours;
   if (USE_DEMO_TIMINGS) {
     // DEMO: Minutes
-    prepHours = 0.017; // ~1 minute
-    if (totalItems > 5 && totalItems <= 10) prepHours = 0.034; // ~2 mins
-    if (totalItems > 10) prepHours = 0.05; // ~3 mins
+    prepHours = 0.00833; // 30 seconds
+    if (totalItems > 5 && totalItems <= 10) prepHours = 0.016;
+    if (totalItems > 10) prepHours = 0.025;
   } else {
     // REAL: Hours
     prepHours = 2; // 2 hours default
@@ -167,20 +179,20 @@ const calculateDynamicStatus = (order) => {
   // REAL: Default 1 hour if unknown? Or 24h? User said "depends on map". 
   // In this helper, we don't have map access. Let's assume reasonable 45 mins local delivery or 24h standard.
   // We'll use 45 mins as a visual placeholder for "Real" if we can't get data.
-  const travelDurationSec = USE_DEMO_TIMINGS ? 120 : (45 * 60);
+  const travelDurationSec = USE_DEMO_TIMINGS ? 30 : (45 * 60);
   const arrivalTime = new Date(departureTime.getTime() + (travelDurationSec * 1000));
 
   // 5. Completion Time 
   // DEMO: 1 min after delivery
   // REAL: 1 hour after delivery
-  const completionBufferMin = USE_DEMO_TIMINGS ? 1 : 60;
+  const completionBufferMin = USE_DEMO_TIMINGS ? 0.1 : 60;
   const completionTime = new Date(arrivalTime.getTime() + (completionBufferMin * 60 * 1000));
 
   // Determine Status
-  if (now >= completionTime) return "Completed";
-  if (now >= arrivalTime) return "Delivered";
-  if (now >= departureTime) return "En Route";
-  if (now >= prepStartTime) return "Preparing";
+  if (now >= completionTime) return "completed";
+  if (now >= arrivalTime) return "delivered";
+  if (now >= departureTime) return "en route";
+  if (now >= prepStartTime) return "preparing";
 
   return "Pending";
 };
@@ -418,6 +430,7 @@ exports.returnOrder = async (req, res) => {
 
     const order = await Order.findOne({
       where: { id: orderId, userId },
+      include: [{ model: OrderItem, as: "items" }],
       transaction
     });
 
@@ -426,15 +439,43 @@ exports.returnOrder = async (req, res) => {
       return res.status(404).send({ message: "Order not found." });
     }
 
+    // Check dynamic status because DB might be stale (Pending) in Demo Mode
+    const orderJSON = order.toJSON();
+    const dynamicStatus = calculateDynamicStatus(orderJSON);
+
+    // Auto-update DB if dynamic status is advanced
+    if ((dynamicStatus === "delivered" || dynamicStatus === "completed") && order.status !== dynamicStatus) {
+      order.status = dynamicStatus;
+      await order.save({ transaction });
+    }
+
     const s = order.status.toLowerCase();
     if (s !== "delivered" && s !== "completed") {
       await transaction.rollback();
       return res.status(400).send({ message: "Order must be Delivered or Completed to be returned." });
     }
 
+    // Restore inventory for each item
+    for (const item of order.items) {
+      // Find ANY warehouse that has this product record to return to
+      // In a real system, this would be the specific warehouse it shipped from or a returns center.
+      // For this demo, we add it back to the warehouse with the highest stock (consolidating) or just the first found.
+      const inventory = await Inventory.findOne({
+        where: { productId: item.productId },
+        order: [['quantity_available', 'DESC']],
+        transaction
+      });
+
+      if (inventory) {
+        inventory.quantity_available += item.quantity;
+        await inventory.save({ transaction });
+        console.log(`[Return] Restored ${item.quantity} units of product ${item.productId} to warehouse ${inventory.warehouseId}`);
+      } else {
+        console.warn(`[Return] No inventory record found for product ${item.productId} to restore stock.`);
+      }
+    }
+
     // Update status to 'returned'
-    // NOTE: We do NOT automatically restore stock for returns usually, as it needs inspection.
-    // For this API demo, we will just mark it as returned.
     order.status = "returned";
     await order.save({ transaction });
 
@@ -472,8 +513,8 @@ const getRouteData = async (origin, destination, orderIdHash) => {
     return {
       distanceValue: mockDistKm * 1000,
       distanceText: `${mockDistKm} km`,
-      durationValue: 120, // 2 minutes (120 seconds) FIXED
-      durationText: "2 mins"
+      durationValue: 30, // 30 seconds FIXED
+      durationText: "30 secs"
     };
   }
 
@@ -767,10 +808,10 @@ exports.processDelivery = async (req, res) => {
     // --- TIMING & STATUS LOGIC ---
     let prepHours;
     if (USE_DEMO_TIMINGS) {
-      prepHours = 0.0166; // 1 minute
+      prepHours = 0.00833; // 30 seconds
     } else {
       prepHours = 2;
-      if (totalQuantity > 5) prepHours = 3;
+      if (typeof totalQuantity !== 'undefined' && totalQuantity > 5) prepHours = 3;
     }
 
     const createdAt = new Date(order.createdAt);
@@ -784,14 +825,14 @@ exports.processDelivery = async (req, res) => {
     const finalLegDuration = hub.route.durationValue;
     const arrivalTime = new Date(finalDepartureTime.getTime() + (finalLegDuration * 1000));
 
-    const completionBufferMin = USE_DEMO_TIMINGS ? 1 : 60;
+    const completionBufferMin = USE_DEMO_TIMINGS ? 0.1 : 60;
     const completionTime = new Date(arrivalTime.getTime() + (completionBufferMin * 60 * 1000));
 
     // Calculate status (Declared at top, assigned here)
-    if (currentTime >= completionTime) currentStatus = "Completed";
-    else if (currentTime >= arrivalTime) currentStatus = "Delivered";
-    else if (currentTime >= finalDepartureTime) currentStatus = "En Route";
-    else if (currentTime >= prepStartTime) currentStatus = "Preparing";
+    if (currentTime >= completionTime) currentStatus = "completed";
+    else if (currentTime >= arrivalTime) currentStatus = "delivered";
+    else if (currentTime >= finalDepartureTime) currentStatus = "en route";
+    else if (currentTime >= prepStartTime) currentStatus = "preparing";
 
     // --- TIMELINE GENERATION ---
     const timeline = [];
@@ -876,10 +917,19 @@ exports.processDelivery = async (req, res) => {
 
     // Window calculation (Simplified reuse)
     deliveryPlan.windowStart = arrivalTime;
-    deliveryPlan.windowEnd = new Date(arrivalTime.getTime() + (30 * 60 * 1000));
+    const windowDurationMin = USE_DEMO_TIMINGS ? 2 : 30;
+    deliveryPlan.windowEnd = new Date(arrivalTime.getTime() + (windowDurationMin * 60 * 1000));
 
     if (deliveryPlan.status !== "cancelled") {
       deliveryPlan.status = currentStatus;
+
+      // Auto-update DB if status has changed (and isn't cancelled)
+      // This ensures the Orders list (GraphQL) sees the status calculated here (REST)
+      if (order.status !== currentStatus && order.status !== 'cancelled') {
+        order.status = currentStatus;
+        await order.save();
+        console.log(`[Validation] Auto-updated Order ${order.id} status to ${currentStatus}`);
+      }
     }
 
     res.send(deliveryPlan);
