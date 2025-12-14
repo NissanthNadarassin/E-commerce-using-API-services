@@ -194,7 +194,7 @@ export default {
       });
     } catch (err) {
       console.error(err);
-      this.error = "Failed to load delivery details.";
+      this.error = `Failed to load delivery details. ${err.message || err}`;
       this.loading = false;
     }
   },

@@ -313,7 +313,42 @@ exports.returnOrder = async (orderId, userId) => {
     }
 };
 
+// Helper: Calculate ETA (Business Days Only - Mon-Fri)
+const calculateETA = (durationSeconds) => {
+    const now = new Date();
+    let arrivalDate = new Date(now.getTime() + (durationSeconds * 1000) + (2 * 60 * 60 * 1000));
+
+    const moveFocusToBusinessHours = (date) => {
+        const day = date.getDay();
+        const hour = date.getHours();
+
+        if (day === 0) { // Sunday
+            date.setDate(date.getDate() + 1);
+            date.setHours(8, 0, 0, 0);
+            return date;
+        }
+        if (day === 6) { // Saturday
+            date.setDate(date.getDate() + 2);
+            date.setHours(8, 0, 0, 0);
+            return date;
+        }
+        if (hour >= 16) {
+            date.setDate(date.getDate() + 1);
+            date.setHours(8, 0, 0, 0);
+            return moveFocusToBusinessHours(date);
+        }
+        if (hour < 8) {
+            date.setHours(8, 0, 0, 0);
+        }
+        return date;
+    };
+
+    arrivalDate = moveFocusToBusinessHours(arrivalDate);
+    return arrivalDate.toISOString();
+};
+
 exports.getDeliveryInfo = async (orderId) => {
+    const currentTime = new Date();
     const order = await Order.findByPk(orderId, {
         include: [
             { model: OrderItem, as: "items" },
@@ -327,8 +362,7 @@ exports.getDeliveryInfo = async (orderId) => {
 
     if (!order) return null;
 
-    // Trigger state update from Pending -> Processing if applicable (Side Effect from original controller)
-    // To match original logic exactly, we need to save this transition.
+    // Trigger state update from Pending -> Processing if applicable (Side Effect replication)
     if (order.status === "pending") {
         order.status = "processing";
         await order.save();
@@ -346,10 +380,16 @@ exports.getDeliveryInfo = async (orderId) => {
     if (!addressObj && order.user && order.user.addresses && order.user.addresses.length > 0) {
         addressObj = order.user.addresses.find(a => a.is_default_shipping) || order.user.addresses[0];
     }
+
+    let destinationLabel = "Delivery Location";
     if (addressObj) {
         customerAddress = [addressObj.address_line1, addressObj.postal_code, addressObj.city, addressObj.country]
             .filter(part => part && part.trim() !== "")
             .join(", ");
+
+        if (addressObj.label) {
+            destinationLabel = addressObj.label;
+        }
     }
 
     // --- WAREHOUSE LOGIC ---
@@ -359,14 +399,17 @@ exports.getDeliveryInfo = async (orderId) => {
 
     const orderIdHash = parseInt(String(orderId).split('').reduce((a, b) => ((a << 5) - a) + b.charCodeAt(0), 0), 10);
 
+    // 1. Calculate Route from Each Warehouse -> Customer
     const warehouseRoutes = await Promise.all(warehouses.map(async (wh) => {
         const destination = `${wh.city}, ${wh.country}`;
         const routeData = await getRouteData(customerAddress, destination, orderIdHash + wh.id);
         return { warehouse: wh, route: routeData };
     }));
 
+    // Sort by duration (Fastest is Hub Candidate)
     warehouseRoutes.sort((a, b) => a.route.durationValue - b.route.durationValue);
 
+    // Identify HUB (Nearest Warehouse WITH STOCK)
     let hub = null;
     const warehouseHasStock = (wh, orderItems) => {
         return orderItems.some(item => {
@@ -382,48 +425,228 @@ exports.getDeliveryInfo = async (orderId) => {
         }
     }
 
-    if (!hub) hub = warehouseRoutes[0];
+    if (!hub) {
+        console.warn("No warehouse found with stock for Hub selection. Defaulting to nearest.");
+        if (warehouseRoutes.length > 0) {
+            hub = warehouseRoutes[0];
+        } else {
+            console.error("No warehouses available to route from!");
+            // Fallback to a mock hub to prevent crash if absolutely necessary, or just return null/throw
+            // Returning null will result in "delivery: null" in GraphQL which is handled by frontend throw
+            return null;
+        }
+    }
 
-    // --- ALLOCATION (Simplified for View - we don't modify stock here unless we want to replicate side-effects)
-    // Original controller modified stock inside the GET request?! Yes, lines 728 in original code.
-    // That's bad practice (GET changing state), but I must replicate it for "bugs" to be fixed / ported.
-    // Actually, I should probably separate "viewing delivery" from "processing it".
-    // For now, let's just return the calculation.
+    // --- ALLOCATION LOGIC ---
+    // Note: We are calculating the plan but NOT modifying inventory in this GET request (unlike the legacy controller)
+    // to keep it side-effect free for repeated viewing.
 
-    // Status Logic
+    const deliveryPlan = {
+        orderId: order.id,
+        status: "Processing",
+        allocations: [],
+        consolidation: {
+            isConsolidating: false,
+            hub: {
+                name: hub.warehouse.name,
+                city: hub.warehouse.city,
+                address: hub.warehouse.address_line1,
+                postalCode: hub.warehouse.postal_code,
+                country: hub.warehouse.country
+            },
+            transfers: [],
+            hubReadyTime: null
+        },
+        timeline: []
+    };
+
+    let remainingItems = {};
+    let totalQuantity = 0;
+    order.items.forEach(item => {
+        remainingItems[item.productId] = item.quantity;
+        totalQuantity += item.quantity;
+    });
+
+    let maxTransferSeconds = 0;
+
+    for (const entry of warehouseRoutes) {
+        const wh = entry.warehouse;
+        const productIdsNeeded = Object.keys(remainingItems);
+        let warehouseUsed = false;
+        const allocationItems = [];
+
+        for (const productId of productIdsNeeded) {
+            if (remainingItems[productId] <= 0) continue;
+
+            const inventoryItem = wh.inventory.find(inv => inv.productId == productId);
+
+            // For viewing, we assume unlimited stock availability logic or current snapshot
+            if (inventoryItem && inventoryItem.quantity_available > 0) {
+                const qtyNeeded = remainingItems[productId];
+                const qtyAvailable = inventoryItem.quantity_available;
+                const qtyToTake = Math.min(qtyNeeded, qtyAvailable);
+
+                allocationItems.push({
+                    productId: parseInt(productId),
+                    quantity: qtyToTake
+                });
+
+                remainingItems[productId] -= qtyToTake;
+                warehouseUsed = true;
+            }
+        }
+
+        if (warehouseUsed) {
+            if (wh.id === hub.warehouse.id) {
+                // Hub items - implicit
+            } else {
+                // Transfer needed
+                deliveryPlan.consolidation.isConsolidating = true;
+
+                // Transfer Route
+                const transferRoute = await getRouteData(`${hub.warehouse.city}, ${hub.warehouse.country}`, `${wh.city}, ${wh.country}`, orderIdHash + wh.id + 999);
+
+                if (transferRoute.durationValue > maxTransferSeconds) {
+                    maxTransferSeconds = transferRoute.durationValue;
+                }
+
+                deliveryPlan.consolidation.transfers.push({
+                    fromWarehouse: wh.name,
+                    fromCity: wh.city,
+                    toHub: hub.warehouse.city,
+                    items: allocationItems,
+                    durationText: transferRoute.durationText,
+                    durationValue: transferRoute.durationValue,
+                    status: "In Transit"
+                });
+            }
+        }
+
+        const allFulfilled = Object.values(remainingItems).every(q => q === 0);
+        if (allFulfilled) break;
+    }
+
+    // --- TIMING & STATUS LOGIC ---
+    let prepHours;
+    if (USE_DEMO_TIMINGS) {
+        prepHours = 0.0166; // 1 minute
+    } else {
+        prepHours = 2;
+        if (totalQuantity > 5) prepHours = 3;
+    }
+
     const createdAt = new Date(order.createdAt);
-    const totalQuantity = order.items.reduce((acc, item) => acc + item.quantity, 0);
-
-    let prepHours = USE_DEMO_TIMINGS ? 0.00833 : (totalQuantity > 5 ? 3 : 2);
     const prepStartTime = getPrepStartTime(createdAt);
     const orderPrepFinishTime = addWarehouseHours(createdAt, prepHours, prepStartTime);
 
     // Hub Ready Time
-    const hubReadyTime = orderPrepFinishTime;
+    const hubReadyTime = new Date(orderPrepFinishTime.getTime() + (maxTransferSeconds * 1000));
+    deliveryPlan.consolidation.hubReadyTime = hubReadyTime.toISOString();
+
     const finalDepartureTime = hubReadyTime;
     const finalLegDuration = hub.route.durationValue;
     const arrivalTime = new Date(finalDepartureTime.getTime() + (finalLegDuration * 1000));
 
-    const completionBufferMin = USE_DEMO_TIMINGS ? 0.1 : 60;
+    const completionBufferMin = USE_DEMO_TIMINGS ? 1 : 60;
     const completionTime = new Date(arrivalTime.getTime() + (completionBufferMin * 60 * 1000));
 
-    const currentStatus = calculateDynamicStatus(order);
+    // Calculate status 
+    let currentStatus = "Pending";
+    if (currentTime >= completionTime) currentStatus = "Completed";
+    else if (currentTime >= arrivalTime) currentStatus = "Delivered";
+    else if (currentTime >= finalDepartureTime) currentStatus = "En Route";
+    else if (currentTime >= prepStartTime) currentStatus = "Preparing";
 
-    return {
-        orderId: order.id,
-        status: currentStatus,
-        origin: `${hub.warehouse.city}, ${hub.warehouse.country}`,
-        destination: customerAddress,
-        distanceText: hub.route.distanceText,
+    // Override if cancelled/returned
+    if (order.status === "cancelled" || order.status === "returned") {
+        currentStatus = order.status;
+    }
+
+    deliveryPlan.status = currentStatus;
+
+    // --- TIMELINE GENERATION ---
+    const timeline = [];
+
+    // Event 1: Order Placed
+    timeline.push({
+        status: "Order Placed",
+        description: "Order received and confirmed.",
+        time: createdAt.toISOString(),
+        isCompleted: true
+    });
+
+    // Event 2: Pending at Warehouse
+    const isPendingDone = (currentTime >= finalDepartureTime);
+    timeline.push({
+        status: `Pending at ${hub.warehouse.city} Warehouse`,
+        description: isPendingDone ? "Package processed and ready for departure." : "Processing order and consolidating items.",
+        time: prepStartTime.toISOString(),
+        isCompleted: isPendingDone
+    });
+
+    // Event 3: En Route
+    const isEnRouteDone = (currentTime >= arrivalTime);
+    if (currentTime >= finalDepartureTime) {
+        timeline.push({
+            status: "En Route",
+            description: "On the way to " + destinationLabel,
+            time: finalDepartureTime.toISOString(),
+            isCompleted: isEnRouteDone
+        });
+    } else {
+        timeline.push({
+            status: "En Route",
+            description: "Scheduled departure",
+            time: finalDepartureTime.toISOString(),
+            isCompleted: false
+        });
+    }
+
+    // Event 4: Delivered
+    if (currentTime >= arrivalTime) {
+        timeline.push({
+            status: "Delivered",
+            description: "Package delivered to " + destinationLabel,
+            time: arrivalTime.toISOString(),
+            isCompleted: true
+        });
+    } else {
+        timeline.push({
+            status: "Delivered",
+            description: "Estimated Arrival",
+            time: arrivalTime.toISOString(),
+            isCompleted: false
+        });
+    }
+
+    deliveryPlan.timeline = timeline;
+
+    // Main Allocation for View
+    const mainAllocation = {
+        warehouseCity: hub.warehouse.city,
+        warehouseCountry: hub.warehouse.country,
+        warehouseAddressLine1: hub.warehouse.address_line1,
+        warehousePostalCode: hub.warehouse.postal_code,
+        destinationLabel: destinationLabel,
+        destinationAddress: customerAddress,
+        eta: arrivalTime.toISOString(),
         durationText: hub.route.durationText,
-        estimatedArrival: arrivalTime.toISOString(),
-        timeline: [
-            { title: "Order Placed", time: order.createdAt, done: true },
-            { title: "Preparation", time: prepStartTime.toISOString(), done: new Date() >= prepStartTime },
-            { title: "En Route", time: finalDepartureTime.toISOString(), done: new Date() >= finalDepartureTime },
-            { title: "Delivered", time: arrivalTime.toISOString(), done: new Date() >= arrivalTime }
-        ]
+        durationValue: hub.route.durationValue,
+        items: order.items.map(i => ({ productId: i.productId, quantity: i.quantity }))
     };
+    deliveryPlan.allocations.push(mainAllocation);
+
+    // Compatibility fields
+    deliveryPlan.origin = `${hub.warehouse.city}, ${hub.warehouse.country}`;
+    deliveryPlan.destination = customerAddress;
+    deliveryPlan.distanceText = hub.route.distanceText;
+    deliveryPlan.durationText = hub.route.durationText;
+    deliveryPlan.estimatedArrival = arrivalTime.toISOString();
+    deliveryPlan.windowStart = arrivalTime.toISOString();
+    deliveryPlan.windowEnd = new Date(arrivalTime.getTime() + (30 * 60 * 1000)).toISOString();
+    deliveryPlan.departureTime = finalDepartureTime.toISOString(); // Used for truck start time
+
+    return deliveryPlan;
 };
 
 exports.calculateDynamicStatus = calculateDynamicStatus;

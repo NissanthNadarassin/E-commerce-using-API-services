@@ -13,6 +13,12 @@ const resolvers = {
             if (!context.userId) throw new Error("Unauthorized");
             return await User.findByPk(context.userId);
         },
+        order: async (_, { id }, context) => {
+            if (!context.userId) throw new Error("Unauthorized");
+            const order = await Order.findOne({ where: { id, userId: context.userId } });
+            if (!order) throw new Error("Order not found or access denied");
+            return order;
+        },
         recommendations: async () => {
             return await Product.findAll({ limit: 5 });
         }

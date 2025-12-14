@@ -32,21 +32,72 @@ const typeDefs = `
     product: Product
   }
 
+  type AllocationItem {
+    productId: Int
+    quantity: Int
+  }
+
+  type Allocation {
+    warehouseCity: String
+    warehouseCountry: String
+    warehouseAddressLine1: String
+    warehousePostalCode: String
+    destinationLabel: String
+    destinationAddress: String
+    eta: String
+    durationText: String
+    durationValue: Int
+    items: [AllocationItem]
+  }
+
+  type Hub {
+    name: String
+    city: String
+    address: String
+    postalCode: String
+    country: String
+  }
+
+  type Transfer {
+    fromWarehouse: String
+    fromCity: String
+    toHub: String
+    durationText: String
+    durationValue: Int
+    status: String
+    items: [AllocationItem]
+  }
+
+  type Consolidation {
+    isConsolidating: Boolean
+    hub: Hub
+    transfers: [Transfer]
+    hubReadyTime: String
+  }
+
   type TimelineEvent {
-    title: String
+    status: String    # Was 'title'
+    description: String
     time: String
-    done: Boolean
+    isCompleted: Boolean # Was 'done'
   }
 
   type DeliveryInfo {
     orderId: Int
     status: String
+    allocations: [Allocation]
+    consolidation: Consolidation
+    timeline: [TimelineEvent]
+    
+    # Keeping these for backward compat if needed, but frontend seems to use allocations largely
     origin: String
     destination: String
     distanceText: String
     durationText: String
     estimatedArrival: String
-    timeline: [TimelineEvent]
+    windowStart: String
+    windowEnd: String
+    departureTime: String
   }
 
   type Order {
@@ -76,6 +127,7 @@ const typeDefs = `
     products: [Product]
     product(id: Int!): Product
     me: User
+    order(id: Int!): Order
     recommendations: [Product]
   }
 

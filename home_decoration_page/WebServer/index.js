@@ -131,36 +131,37 @@ async function initial() {
 
 // Database Connection and Seeding
 // Note: In production you might not want to sync force true every time.
-db.sequelize
-    .sync({ force: false }) // Changed to false to prevent data loss on every restart during dev if desired, but adhering to original logic if it was true. Original was true.
-    // Actually, for refactoring, I should keep behavior similar. User had force: true.
-    // I will stick to what they had or maybe they want to keep data?
-    // Let's use force: false for safety unless they explicitly want reset.
-    // The original server.js had force: true.
+db.sequelize.sync({ force: true })
     .then(async () => {
         console.log("Database synchronized successfully!");
-        // If we want to seed every time, we need force: true, but that wipes data.
-        // I will check if tables exist.
         await initial();
-        // Only run seeds if needed or requested. Original ran them every time after force sync.
-        // For this task, I'll comment them out or put them behind a flag to avoid slow startup/reset,
-        // BUT the user said "make the whole project work perfectly", so maybe I should replicate exactly.
-        // I'll stick to force: false to be safe and only seed if empty, OR just copy the original logic for now?
-        // Original: sync({ force: true }) -> seed everything.
-        // I'll replicate original behavior but maybe with a warning or just do it.
-        // Let's do a check. If I use force: false, I don't lose my work.
+        console.log("Seeding data...");
+        await seedAdmin();
+        await seedWarehouses();
+        await seedProducts();
+        await seedUsers();
+        await seedUser_address();
+        await seedInventory();
+        await seedReviews();
+        // seedOrders typically depends on Users and Products
+        await seedOrders();
+        await seedOrderItems();
+        console.log("All data seeded successfully!");
+
+        // Test server route
+        app.get("/", (req, res) => {
+            res.json({ message: "Welcome to the Home Decoration API (Refactored)!" });
+        });
+
+        // Start the server
+        const PORT = process.env.PORT || 5002;
+        app.listen(PORT, () => {
+            console.log(`Server is running on port ${PORT}.`);
+        });
     })
     .catch((err) => {
         console.error("Error syncing database:", err.message);
     });
 
-// Test server route
-app.get("/", (req, res) => {
-    res.json({ message: "Welcome to the Home Decoration API (Refactored)!" });
-});
+// Server start moved inside db sync
 
-// Start the server
-const PORT = process.env.PORT || 5002;
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}.`);
-});
